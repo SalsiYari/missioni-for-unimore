@@ -4,6 +4,8 @@ from django.conf.urls import include
 
 app_name = 'RimborsiApp'
 urlpatterns = [
+    path('firma/', views.firma, name='firma'),
+    #path('firma/', views.firma, name='firma'),
     path('profile/', views.profile, name='profile'),
     path('foreign_profile/', views.foreign_profile, name='foreign_profile'),
     path('italian_profile/', views.italian_profile, name='italian_profile'),
@@ -39,6 +41,7 @@ urlpatterns = [
 
     path('trasporti_image_preview/<int:id>', utils.trasporto_image_preview, name='trasporti_image_preview'),
     path('pasto_image_preview/<int:id>/<str:img_field_name>/', utils.pasto_image_preview, name='pasto_image_preview'),
+    path('firma_image_preview/<int:id>/<str:img_field_name>/', utils.firma_image_preview, name='firma_image_preview'),
 
     path('statistiche', views.statistiche, name='statistiche'),
 ]

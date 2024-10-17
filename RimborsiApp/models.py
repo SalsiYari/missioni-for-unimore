@@ -242,6 +242,15 @@ class Stato(models.Model):
     class Meta:
         verbose_name_plural = "Stati"
 
+def profile_type_path_firma(instance, filename):
+    if instance.user_owner is None:
+        user=instance.user
+    else :
+        user=instance.user_owner
+
+    user_id = user.id if user else 'unknown_user'
+    return f'users/{user_id}/{filename}'
+
 # Media paths differentiated on the type of the "Spesa"
 def profile_type_path(instance, filename):
     spesa_missione = SpesaMissione.objects.filter(spesa=instance).first()
@@ -491,3 +500,15 @@ class ModuliMissione(models.Model):
     class Meta:
         verbose_name = "Moduli missione"
         verbose_name_plural = "Moduli missioni"
+
+
+class Firme(models.Model):
+   user_owner=models.ForeignKey(User, on_delete=models.CASCADE, related_name='user_owner')
+   descrizione=models.CharField(max_length=1024, null= True, blank=True)
+   img_firma=models.ImageField(upload_to=profile_type_path_firma , null=True, blank=False)
+
+   class Meta:
+       verbose_name = "Firma"
+       verbose_name_plural = "Firme"
+
+# numero firma = object.count() -->e posso numerare il numero di firme

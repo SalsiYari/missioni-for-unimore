@@ -121,7 +121,7 @@ WSGI_APPLICATION = 'Rimborsi.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'missioni',
+        'NAME': 'missioni3',
         'USER': get_secret('DB_USER'),
         'PASSWORD': get_secret('DB_PASSWORD'),
         'HOST': '127.0.0.1',

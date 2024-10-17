@@ -1,0 +1,306 @@
+{% extends "Rimborsi/base.html" %}
+{% load crispy_forms_tags %}
+{% load static %}
+{% block title %}Profilo{% endblock %}
+
+
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">Gestione Firme</h2>
+
+    <form method="POST" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        {{ firme_formset.management_form }}
+
+        <div class="firme-container">
+            {% for form in firme_formset.forms %}
+                <div class="card mb-4 firma-form">
+                    <div class="card-body">
+                        {% for hidden in form.hidden_fields %}
+                            {{ hidden }}
+                        {% endfor %}
+
+                        {{ form.non_field_errors }}
+
+                        <!-- Inizio di una riga -->
+                        <div class="row">
+                            <!-- Colonna per il campo descrizione -->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.descrizione.id_for_label }}" class="form-label">
+                                    {{ form.descrizione.label }}
+                                </label>
+                                {{ form.descrizione }}
+                                {% if form.descrizione.errors %}
+                                    <div class="alert alert-danger mt-2">
+                                        {{ form.descrizione.errors }}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- Colonna per il campo img_firma -->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.img_firma.id_for_label }}" class="form-label">
+                                    {{ form.img_firma.label }}
+                                </label>
+                                {{ form.img_firma }}
+                                {% if form.img_firma.errors %}
+                                    <div class="alert alert-danger mt-2">
+                                        {{ form.img_firma.errors }}
+                                    </div>
+                                {% endif %}
+                                
+                                {% if form.instance.img_firma %}
+                                    <div class="mt-2">
+                                        <img src="{{ form.instance.img_firma.url }}" alt="Firma corrente" class="img-thumbnail" style="max-width: 200px;">
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <!-- Fine di una riga -->
+
+                        <!-- Se l'istanza esiste, mostra l'opzione per eliminare -->
+                        {% if form.instance.pk %}
+                            <div class="row">
+                                <div class="col-md-12 mb-3">
+                                    <label class="form-label">
+                                        {{ form.DELETE.label }}
+                                        {{ form.DELETE }}
+                                    </label>
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <div class="mb-3">
+            <button type="button" class="btn btn-secondary me-2" id="add-form">Aggiungi Firma</button>
+            <button type="submit" class="btn btn-primary">Salva</button>
+        </div>
+    </form>
+</div>
+
+<div id="empty-form" style="display: none;">
+    <div class="card mb-4 firma-form">
+        <div class="card-body">
+            {{ firme_formset.empty_form }}
+        </div>
+    </div>
+</div>
+
+
+ <script src="{% static 'RimborsiApp/formset/jquery_formset.js' %}"></script>
+<script type="text/javascript">
+document.addEventListener('DOMContentLoaded', function() {
+    const addButton = document.getElementById('add-form');
+    const formContainer = document.querySelector('.firme-container');
+    const totalFormsInput = document.querySelector('#id_firme-TOTAL_FORMS');
+    const emptyForm = document.querySelector('#empty-form').firstElementChild;
+
+    addButton.addEventListener('click', function() {
+        const formCount = formContainer.children.length;
+        const newForm = emptyForm.cloneNode(true);
+        const formRegex = RegExp('__prefix__', 'g');
+
+        newForm.innerHTML = newForm.innerHTML.replace(formRegex, formCount);
+        formContainer.appendChild(newForm);
+
+        totalFormsInput.value = formCount + 1;
+    });
+});
+</script>
+
+{% endblock %}
+<!-- thres comparable 2-->
+
+{% extends "Rimborsi/base.html" %}
+{% load crispy_forms_tags %}
+{% load static %}
+{% block title %}Profilo{% endblock %}
+
+{% comment %}
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">Gestione Firme</h2>
+
+    <form method="POST" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        {{ firme_formset.management_form }}
+
+        <div class="firme-container">
+            {% for form in firme_formset %}
+                <div class="card mb-4 firma-form">
+                    <div class="card-body">
+                        {# Importante: includiamo i campi nascosti #}
+                        {% for hidden in form.hidden_fields %}
+                            {{ hidden }}
+                        {% endfor %}
+
+                        {{ form.non_field_errors }}
+
+                        <div class="mb-3">
+                            <label for="{{ form.descrizione.id_for_label }}" class="form-label">
+                                {{ form.descrizione.label }}
+                            </label>
+                            {{ form.descrizione }}
+                            {% if form.descrizione.errors %}
+                                <div class="alert alert-danger mt-2">
+                                    {{ form.descrizione.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.img_firma.id_for_label }}" class="form-label">
+                                {{ form.img_firma.label }}
+                            </label>
+                            {{ form.img_firma }}
+                            {% if form.img_firma.errors %}
+                                <div class="alert alert-danger mt-2">
+                                    {{ form.img_firma.errors }}
+                                </div>
+                            {% endif %}
+
+                            {% if form.instance.img_firma %}
+                                <div class="mt-2">
+                                    <img src="{{ form.instance.img_firma.url }}" alt="Firma corrente" class="img-thumbnail" style="max-width: 200px;">
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        {% if form.instance.pk %}
+                            <div class="delete-form mb-3">
+                                {{ form.DELETE.label_tag }}
+                                {{ form.DELETE }}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <div class="mb-3">
+            <button type="submit" class="btn btn-primary">Salva</button>
+        </div>
+    </form>
+</div>
+
+{% if messages %}
+<div class="messages">
+    {% for message in messages %}
+    <div class="alert alert-{{ message.tags }}">
+        {{ message }}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% endblock %}{% endcomment %}
+
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-4">Gestione Firme</h2>
+
+    <form method="POST" enctype="multipart/form-data">
+        {% csrf_token %}
+
+        {{ firme_formset.management_form }}
+
+        <div class="firme-container">
+            {% for form in firme_formset.forms %}
+                <div class="card mb-4 firma-form">
+                    <div class="card-body">
+                        {% for hidden in form.hidden_fields %}
+                            {{ hidden }}
+                        {% endfor %}
+
+                        {{ form.non_field_errors }}
+
+                        <div class="mb-3">
+                            <label for="{{ form.descrizione.id_for_label }}" class="form-label">
+                                {{ form.descrizione.label }}
+                            </label>
+                            {{ form.descrizione }}
+                            {% if form.descrizione.errors %}
+                                <div class="alert alert-danger mt-2">
+                                    {{ form.descrizione.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.img_firma.id_for_label }}" class="form-label"> <!-- label per l'immagine della firma, dovrebbe essere "file-label"? nel mio widget è così  -->
+                                {{ form.img_firma.label }}
+                            </label>
+                            {{ form.img_firma }}
+                            {% if form.img_firma.errors %}
+                                <div class="alert alert-danger mt-2">
+                                    {{ form.img_firma.errors }}
+                                </div>
+                            {% endif %}
+
+                            {% if form.instance.img_firma %}
+                                <div class="mt-2">
+                                    <img src="{{instnce.img_firma.url}}" alt="Firma corrente" class="img-thumbnail" style="max-width: 200px;">
+                                </div><!-- /home/administrator/missioni-unimore/media/users/1/web-link.png -->
+
+                            {% endif %}
+                        </div>
+
+                        {% if form.instance.pk %}
+                            <div class="delete-form mb-3">
+                                <label class="form-label">
+                                    {{ form.DELETE.label }}
+                                    {{ form.DELETE }}
+                                </label>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <div class="mb-3">
+            <button type="button" class="btn btn-secondary me-2" id="add-form">Aggiungi Firma</button>
+            <button type="submit" class="btn btn-primary">Salva</button>
+        </div>
+    </form>
+</div>
+
+<div id="empty-form" style="display: none;">
+    <div class="card mb-4 firma-form">
+        <div class="card-body">
+            {{ firme_formset.empty_form }}
+        </div>
+    </div>
+</div>
+
+
+
+ <script src="{% static 'RimborsiApp/formset/jquery_formset.js' %}"></script>
+<script type="text/javascript">
+document.addEventListener('DOMContentLoaded', function() {
+    const addButton = document.getElementById('add-form');
+    const formContainer = document.querySelector('.firme-container');
+    const totalFormsInput = document.querySelector('#id_firme-TOTAL_FORMS');
+    const emptyForm = document.querySelector('#empty-form').firstElementChild;
+
+    addButton.addEventListener('click', function() {
+        const formCount = formContainer.children.length;
+        const newForm = emptyForm.cloneNode(true);
+        const formRegex = RegExp('__prefix__', 'g');
+
+        newForm.innerHTML = newForm.innerHTML.replace(formRegex, formCount);
+        formContainer.appendChild(newForm);
+
+        totalFormsInput.value = formCount + 1;
+    });
+});
+</script>
+
+{% endblock %}

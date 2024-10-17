@@ -1,5 +1,6 @@
 import decimal
 import json
+from distutils.command.install import install
 
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.decorators import login_required
@@ -284,11 +285,16 @@ def resoconto(request, id):
 
 def general_profile(request, profile_form, page, is_straniero):
     if request.method == 'GET':
-        automobili = Automobile.objects.filter(user=request.user)
 
+        automobili = Automobile.objects.filter(user=request.user)
         afs = automobile_formset(instance=request.user, queryset=automobili)
+
+        firme_formset= firma_formset(instance=request.user, queryset=Firme.objects.filter(user_owner=request.user))
+        #firme_formset = firma_formset( queryset=Firme.objects.filter(user_owner=request.user))
         return render(request, page, {'profile_form': profile_form,
-                                      'automobili_formset': afs})
+                                      'automobili_formset': afs,
+                                      'firme_formset': firme_formset,})
+
 
     elif request.method == 'POST':
         #profile_form = ProfileForm(request.POST, instance=profile)
@@ -901,3 +907,70 @@ def statistiche(request):
     return render(request, 'Rimborsi/statistiche.html', {
         'missioni_ricerca': missioni_ricerca,
         'missioni_progetto': missioni_progetto})
+
+
+'''
+@login_required
+def firma(request):             # == Salva_firme
+    if request.method == 'GET':
+        #redirect('RimborsiApp:profile')
+        firme_formset = firma_formset(instance=request.user, queryset=Firme.objects.filter(user_owner=request.user))
+        return render(request, 'Rimborsi/trashComparable.html', {'firme_formset': firme_formset, })
+
+    elif request.method == 'POST':
+        user=request.user
+        firme_formset = firma_formset(request.POST, request.FILES, instance = User.objects.get(id=user.id))
+        #firme_formset = firma_formset(request.POST, request.FILES)
+
+        for form in firme_formset.forms:
+            form.user_owner = user      #superfluo
+
+        if firme_formset.is_valid():
+            firme_formset.save()
+
+            return redirect('RimborsiApp:profile')
+        else:
+            #return HttpResponseServerError('Errore nel caricamento della firma')
+            return HttpResponse(f"Errore nel formset: {firme_formset.errors}")
+    else:
+        return HttpResponseBadRequest()
+'''
+
+
+@login_required
+def firma(request):
+    if request.method == 'GET':
+        firme_formset = firma_formset(
+            instance=request.user,
+            queryset=Firme.objects.filter(user_owner=request.user)
+        )
+        return redirect('RimborsiApp:profile')
+        '''return render(request, 'Rimborsi/trashComparable.html', {
+            'firme_formset': firme_formset,
+            'media_root': settings.MEDIA_ROOT,
+        })'''
+
+    elif request.method == 'POST':
+        firme_formset = firma_formset(request.POST,request.FILES,instance=request.user)
+
+        if firme_formset.is_valid():
+            instances = firme_formset.save(commit=False)
+            for instance in instances:
+                instance.user_owner = request.user
+                instance.save()
+
+            # Gestisce le eliminazioni
+            for obj in firme_formset.deleted_objects:
+                obj.delete()
+
+            return redirect('RimborsiApp:firma')
+        else:
+            # Per debug
+            print("Errori nel formset:", firme_formset.errors)
+            print("Errori non legati ai form:", firme_formset.non_form_errors())
+
+            return render(request, 'Rimborsi/firma', {
+                'firme_formset': firme_formset
+            })
+
+    return HttpResponseBadRequest()

@@ -8,7 +8,9 @@ from django.contrib.auth.forms import UserCreationForm
 from django.forms.models import formset_factory, inlineformset_factory, modelformset_factory
 
 from .models import *
-from .widgets import CustomClearableFileInput, PastiCustomClearableFileInput
+from .widgets import CustomClearableFileInput, PastiCustomClearableFileInput ,FirmeCustomClearableFileInput
+
+from django.forms import ClearableFileInput
 
 class ForeignProfileForm(forms.ModelForm):
     nome = forms.CharField(max_length=30, label='Name')
@@ -599,6 +601,34 @@ class ModuliMissioneForm(forms.ModelForm):
             del self.fields['atto_notorio_dichiarazione'].widget.attrs['readonly']  # Enable the textarea
 
 
+class FirmaForm(forms.ModelForm):
+    class Meta:
+        model = Firme
+        fields = ['descrizione', 'img_firma']  # Specifichiamo esplicitamente i campi
+        widgets = {
+            'descrizione': forms.TextInput(attrs={'class': 'form-control form-control-sm'}),
+            #'img_firma': forms.ClearableFileInput(attrs={'class': 'form-control form-control-sm'}),
+            'img_firma': FirmeCustomClearableFileInput(attrs={'class': 'form-control form-control-sm'}),
+        }
+        labels = {
+            'descrizione': 'Descrizione della firma:',
+            'img_firma': 'Immagine della firma',
+        }
+
+# Modifica del formset
+firma_formset = inlineformset_factory(
+    User,
+    Firme,
+    form=FirmaForm,
+    extra=0,
+    can_delete=True,
+    min_num=1,
+    fields=['descrizione', 'img_firma']  # Specifica esplicitamente i campi
+)
+#firma_formset = inlineformset_factory(User, Firme, FirmaForm, extra=0, can_delete=True,min_num=1)
+
+
+#---------------------------- fromsets ----------------------------#
 automobile_formset = inlineformset_factory(User, Automobile, AutomobileForm, extra=0, can_delete=True,
                                            exclude=('user',), min_num=1)
 trasporto_formset = inlineformset_factory(Missione, Trasporto, TrasportoForm, extra=0, can_delete=True,
