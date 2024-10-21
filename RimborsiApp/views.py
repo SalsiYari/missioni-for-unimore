@@ -290,10 +290,20 @@ def general_profile(request, profile_form, page, is_straniero):
         afs = automobile_formset(instance=request.user, queryset=automobili)
 
         firme_formset= firma_formset(instance=request.user, queryset=Firme.objects.filter(user_owner=request.user))
-        #firme_formset = firma_formset( queryset=Firme.objects.filter(user_owner=request.user))
+        firme_shared = Firme_Shared_Form(user=request.user)
+        '''firme_recived_formset = firma_recived_formset(
+            queryset=Firme_Shared.objects.filter(
+                firma=Firme.objects.filter(user_owner=request.user)) )'''
+        firme_recived_formset = firma_recived_formset(queryset=Firme_Shared.objects.filter(user_guest=request.user))
+        firme_recived_visual = firma_recived_visualization_formset(queryset=Firme_Shared.objects.filter(firma__in=Firme.objects.filter(user_owner=request.user)))
+
         return render(request, page, {'profile_form': profile_form,
                                       'automobili_formset': afs,
-                                      'firme_formset': firme_formset,})
+                                      'firme_formset': firme_formset,
+                                      'firme_shared': firme_shared,
+                                      'firme_recived_formset': firme_recived_formset,
+                                        'firme_recived_visual': firme_recived_visual,
+        })
 
 
     elif request.method == 'POST':
@@ -945,10 +955,6 @@ def firma(request):
             queryset=Firme.objects.filter(user_owner=request.user)
         )
         return redirect('RimborsiApp:profile')
-        '''return render(request, 'Rimborsi/trashComparable.html', {
-            'firme_formset': firme_formset,
-            'media_root': settings.MEDIA_ROOT,
-        })'''
 
     elif request.method == 'POST':
         firme_formset = firma_formset(request.POST,request.FILES,instance=request.user)
@@ -972,5 +978,41 @@ def firma(request):
             return render(request, 'Rimborsi/firma', {
                 'firme_formset': firme_formset
             })
+
+    return HttpResponseBadRequest()
+
+def firma_shared(request):      #gestione firme che condivido con altri
+
+    if request.method == 'GET':
+        redirect('RimborsiApp:profile')
+    elif request.method == 'POST':
+        #per condividere firme
+        firme_shared = Firme_Shared_Form(request.POST)
+
+        if firme_shared.is_valid():
+            firme_shared.save()
+
+            return redirect('RimborsiApp:profile')
+        else:
+            # Per debug
+            print("Errori nel formset:", firme_shared.errors)
+            print("Errori non legati ai form:", firme_shared.non_form_errors())
+
+            return render(request, 'Rimborsi/firma')
+    else:
+        return HttpResponseBadRequest()
+
+
+def firma_recived_visualization(request):
+    if request.method == 'GET':
+        return redirect('RimborsiApp:profile')
+
+    elif request.method == 'POST':
+        firme_recived_formset = firma_recived_visualization_formset(request.POST)
+
+        if firme_recived_formset.is_valid():
+            firme_recived_formset.save()
+
+        return redirect('RimborsiApp:profile')
 
     return HttpResponseBadRequest()

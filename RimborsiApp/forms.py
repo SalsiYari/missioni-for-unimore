@@ -6,6 +6,7 @@ from dal import autocomplete
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
 from django.forms.models import formset_factory, inlineformset_factory, modelformset_factory
+from genericpath import exists
 
 from .models import *
 from .widgets import CustomClearableFileInput, PastiCustomClearableFileInput ,FirmeCustomClearableFileInput
@@ -627,6 +628,85 @@ firma_formset = inlineformset_factory(
 )
 #firma_formset = inlineformset_factory(User, Firme, FirmaForm, extra=0, can_delete=True,min_num=1)
 
+class Firme_Shared_Form(forms.ModelForm):   #form per la condivisione di firme
+    class Meta:
+        model = Firme_Shared
+        fields = ['firma', 'user_guest']
+        widgets = {
+            #se ometto img firma è di default
+            'firma': forms.Select(attrs={'class': 'form-control form-control-sm'}),
+            'user_guest': forms.Select(attrs={'class': 'form-control form-control-sm'}),
+        }
+        labels = {
+
+            'user_guest': 'ad utente:',
+            'firma':'condividi:',
+        }
+
+    def __init__(self, *args ,user=None, **kwargs):
+        super(Firme_Shared_Form, self).__init__(*args, **kwargs)
+        user_request = user
+        if user_request:
+            #filtro le firme dell'utente corrente
+            self.fields['firma'].queryset = Firme.objects.filter(user_owner=user_request)
+            self.fields['user_guest'].queryset = User.objects.exclude(id=user_request.id)
+
+            #self.fields['img_firma'].queryset = Firme.objects.filter(img_firma=)
+
+firma_shared_formset = inlineformset_factory(User, Firme_Shared, Firme_Shared_Form, extra=0, can_delete=True, min_num=1)
+
+class Firme_Recived_Form(forms.ModelForm):      #form per la ricezione di firme condivise !!DA MODIFICARE
+    user_owner= forms.CharField(required=False)
+    desc_firma = forms.CharField(required=False)
+
+    class Meta:
+        model = Firme_Shared
+        fields = [  'user_owner','firma','desc_firma' ]
+        widgets = {
+            'firma': forms.Select(attrs={'class': 'form-control form-control-sm'}),
+            'user_owner': forms.TextInput(attrs={'class': 'form-control form-control-sm'}),
+            'desc_firma': forms.TextInput(attrs={'class': 'form-control form-control-sm'}),
+        }
+        labels = {
+            'firma': '',
+            'desc_firma': '',
+            'user_owner': '',
+        }
+
+    def __init__(self, *args, **kwargs):
+        super(Firme_Recived_Form, self).__init__(*args, **kwargs)
+
+        if self.instance and self.instance.firma:
+            # Imposta i valori iniziali per i campi non modificabili
+            self.fields['user_owner'].initial = self.instance.firma.user_owner
+            self.fields['desc_firma'].initial = self.instance.firma.descrizione
+
+            # Imposta i campi come non modificabili
+            self.fields['user_owner'].widget.attrs['readonly'] = True
+            self.fields['desc_firma'].widget.attrs['readonly'] = True
+
+firma_recived_formset = modelformset_factory(Firme_Shared, form=Firme_Recived_Form, extra=0, can_delete=False, min_num=0 )
+
+class Firme_Shared_Visualization_Form(forms.ModelForm):
+    class Meta:
+        model = Firme_Shared
+        fields = ['firma', 'user_guest']
+        widgets = {
+            'firma': forms.Select(attrs={'class': 'form-control form-control-sm'}),
+            'user_guest': forms.Select(attrs={'class': 'form-control form-control-sm'}),
+        }
+        labels = {
+            'firma': 'Firma condivisa',
+            'user_guest': 'Utente a cui è stata condivisa la firma',
+        }
+
+    def __init__(self, *args, **kwargs):
+        super(Firme_Shared_Visualization_Form, self).__init__(*args, **kwargs)
+        # Imposta i campi come non modificabili
+        self.fields['firma'].widget.attrs['readonly'] = True
+        self.fields['user_guest'].widget.attrs['readonly'] = True
+
+firma_recived_visualization_formset = modelformset_factory(Firme_Shared, form=Firme_Shared_Visualization_Form, extra=0, can_delete=True, min_num=0 )
 
 #---------------------------- fromsets ----------------------------#
 automobile_formset = inlineformset_factory(User, Automobile, AutomobileForm, extra=0, can_delete=True,

@@ -509,6 +509,21 @@ class Firme(models.Model):
 
    class Meta:
        verbose_name = "Firma"
-       verbose_name_plural = "Firme"
+       verbose_name_plural = "Firme "
 
-# numero firma = object.count() -->e posso numerare il numero di firme
+   def __str__(self):
+       return f'firma con descrizione: {self.descrizione}'
+
+
+
+class Firme_Shared(models.Model):
+    user_guest = models.ForeignKey(User, on_delete=models.CASCADE, related_name='user_owner_shared')
+    firma = models.ForeignKey(Firme, on_delete=models.CASCADE, related_name='firma_shared')
+
+    class Meta:
+        verbose_name = "Firma condivisa"
+        verbose_name_plural = "Firme condivise"
+
+    def __str__(self):
+        return f'{self.user_guest} ha il permesso di usare la fira di {self.firma.user_owner}'
+

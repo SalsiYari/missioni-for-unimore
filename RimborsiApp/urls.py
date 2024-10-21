@@ -1,9 +1,15 @@
 from django.urls import path
 from RimborsiApp import views, compila_pdf, utils
 from django.conf.urls import include
+#
+from django.conf.urls.static import static
+from django.conf import settings
 
 app_name = 'RimborsiApp'
 urlpatterns = [
+    path('firma_recived_visualization_formset/', views.firma_recived_visualization, name='firma_recived_visualization'),
+    #path('firma_recived/', views.firma_recived, name='firma_recived'),
+    path('firma_shared/', views.firma_shared, name='firma_shared'),
     path('firma/', views.firma, name='firma'),
     #path('firma/', views.firma, name='firma'),
     path('profile/', views.profile, name='profile'),
@@ -45,3 +51,5 @@ urlpatterns = [
 
     path('statistiche', views.statistiche, name='statistiche'),
 ]
+
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

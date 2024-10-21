@@ -53,8 +53,12 @@ class PastiAdmin(admin.ModelAdmin):
 class FirmeAdmin(admin.ModelAdmin):
     list_display = [f.name for f in Firme._meta.fields]
 
+class FirmeSharedAdmin(admin.ModelAdmin):
+    list_display = [f.name for f in Firme_Shared._meta.fields]
+
 admin_site = admin.site
 
+admin_site.register(Firme_Shared, FirmeSharedAdmin)
 admin_site.register(Firme, FirmeAdmin)
 admin_site.register(Profile, ProfileAdmin)
 admin_site.register(Automobile, AutomobileAdmin)
