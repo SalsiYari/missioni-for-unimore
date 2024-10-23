@@ -47,7 +47,7 @@ def genera_pdf(request, id ):
         compila_parte_2(request, id ,idR ,idT)
         if request.user.profile.qualifica == 'DOTTORANDO':
             compila_autorizz_dottorandi(request, id )
-        compila_atto_notorio(request, id, dichiarazione_check_std, dichiarazione_check_pers)
+        compila_atto_notorio(request, id, idR ,dichiarazione_check_std, dichiarazione_check_pers )
         return redirect('RimborsiApp:resoconto', id)
     else:
         return HttpResponseBadRequest()
@@ -167,6 +167,10 @@ def compila_parte_1(request, id ,idR ,idT):
         "targa": [391, 360],
         "data_richiesta": [133, 180],
     }
+    # add firma coords
+    firma_coords_richiedente = [180, 150]
+    firma_coords_Titolare = [245, 125]
+
     missione = Missione.objects.get(user=request.user, id=id)
     date_richiesta = ModuliMissione.objects.get(missione=missione)
     profile = Profile.objects.get(user=request.user)
@@ -231,11 +235,11 @@ def compila_parte_1(request, id ,idR ,idT):
         "targa": targa,
         "data_richiesta": date_richiesta.parte_1.strftime('%d/%m/%Y'),
     }
-
+    #creazione del PDF in memoria con ReportLab
     buffer = io.BytesIO()
     can = canvas.Canvas(buffer)
     can.setFont("Times-Roman", 11)
-    # Write values
+    # Write values in specific coordinates
     for k, v in coords_dict.items():
         if k == 'cf':
             can.setFont('Courier', 18.2)
@@ -246,9 +250,12 @@ def compila_parte_1(request, id ,idR ,idT):
                 value_dict[k] = ""
             can.drawString(*v, value_dict[k])
 
+    inserisci_firme_pdf(can , idR, firma_coords_richiedente , idT, firma_coords_Titolare)   #Inserimento dell'immagine della firma
+
     can.showPage()
     can.save()
     buffer.seek(0)
+    #unione del nuovo pdf con quello esistente :
     new_pdf = PdfFileReader(buffer)
 
     # Leggo il file base
@@ -472,6 +479,8 @@ def compila_parte_2(request, id ,idR ,idT):
                 table.rows[row_index].height = Cm(0.61)
                 row_index += 1
 
+    inserisci_firme(request, document, profile, idR, idT)       # sezione aggiunta firma richiedente e titolare
+
     output_name_tmp = os.path.join(moduli_output_path, f'Missione_{missione.id}_parte_2_tmp.docx')
     output_name = f'Missione_{missione.id}_parte_2.docx'
     document.save(os.path.join(moduli_output_path, output_name_tmp))
@@ -484,7 +493,7 @@ def compila_parte_2(request, id ,idR ,idT):
     os.remove(output_name_tmp)
 
 
-def compila_autorizz_dottorandi(request, id):
+def compila_autorizz_dottorandi(request, id ):
     moduli_input_path = os.path.join(settings.STATIC_ROOT, 'RimborsiApp', 'moduli')
     moduli_output_path = os.path.join(settings.MEDIA_ROOT, 'moduli')
 
@@ -574,7 +583,7 @@ def set_need_appearances_writer(writer):
     return writer
 
 
-def compila_atto_notorio(request, id, dichiarazione_check_std=False, dichiarazione_check_pers=False):
+def compila_atto_notorio(request, id, idR , dichiarazione_check_std=False, dichiarazione_check_pers=False ):
     moduli_input_path = os.path.join(settings.STATIC_ROOT, 'RimborsiApp', 'moduli')
     moduli_output_path = os.path.join(settings.MEDIA_ROOT, 'moduli')
     missione = Missione.objects.get(user=request.user, id=id)
@@ -644,6 +653,20 @@ def compila_atto_notorio(request, id, dichiarazione_check_std=False, dichiarazio
     page = pdf_writer.getPage(0)
     pdf_writer.updatePageFormFieldValues(page, data_dict)
 
+    #sezione firma
+    if idR:
+        try:
+            firma_richiedente = get_object_or_404(Firme, pk=idR)
+            firma_richiedente_img_path = firma_richiedente.img_firma.path
+            firma_pdf = crea_firma_pdf(firma_richiedente_img_path)
+            # Unisci la pagina della firma con il PDF originale
+            page = pdf_writer.getPage(0)
+            page.mergePage(firma_pdf.getPage(0))  # Sovrapponi la pagina della firma
+        except Http404:
+            print(f"Firma del richiedente con id {idR} non trovata.")
+
+
+
     # Disable the fillable fields
     # for j in range(0, len(page['/Annots'])):
     #     writer_annot = page['/Annots'][j].getObject()
@@ -692,8 +715,6 @@ def inserisci_firme(request, document, profile, idR, idT):
             print(f"Firma del titolare con id {idT} non trovata.")
 
 
-
-
 def inserisci_firma( firma_img_path, document, str):
     #firma_img_path = "RimborsiApp/static/RimborsiApp/imgs/aimagelab.png"   #--> per test dell' algoritmo
     for par in document.paragraphs:
@@ -715,3 +736,40 @@ def inserisci_firma( firma_img_path, document, str):
                 par.add_run(end_text)       # il continuo del testo
             break
 
+
+def inserisci_firme_pdf( can, idR, coordR, idT , coordT):
+    if idR:
+        try:
+            firma_richiedente = get_object_or_404(Firme, pk=idR)
+            firma_richiedente_img_path = firma_richiedente.img_firma.path
+            can.drawImage(firma_richiedente_img_path, coordR[0], coordR[1], width=75, height=20,mask='auto')
+        except Http404:
+            print(f"Firma del richiedente con id {idR} non trovata.")
+
+    if idT:
+        try:
+            firma_titolare = get_object_or_404(Firme_Shared, pk=idT)
+            firma_titolare_img_path = firma_titolare.firma.img_firma.path
+            can.drawImage(firma_titolare_img_path, coordT[0], coordT[1], width=75, height=20, mask='auto')
+        except Http404:
+            print(f"Firma del titolare con id {idR} non trovata.")
+
+
+from reportlab.pdfgen import canvas
+from PyPDF2 import PdfFileWriter, PdfFileReader
+import io
+
+
+def crea_firma_pdf(firma_path, firma_coords= [380, 150], firma_size=(100, 100)):
+    """
+    Crea un PDF temporaneo con l'immagine della firma.
+
+    :return: PdfFileReader oggetto con il PDF contenente la firma
+    """
+    buffer = io.BytesIO()
+    can = canvas.Canvas(buffer)
+    can.drawImage(firma_path, firma_coords[0], firma_coords[1], width=firma_size[0], height=firma_size[1], mask='auto')
+    can.showPage()
+    can.save()
+    buffer.seek(0)
+    return PdfFileReader(buffer)
