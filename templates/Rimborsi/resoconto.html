@@ -224,12 +224,37 @@
                                         {% endif %}
                                     </div>
                                 </div>
+                                <div class="col-12">
+                                    <div class="custom-style-choose p-4 d-flex align-items-center justify-content-center" style="height: 100%;">
+                                        <div class="row w-100">
+                                            <div class="col-md-6 col-12 d-flex align-items-center justify-content-center" style="height: 100%;background-color: rgba(195,234,116,0.34) ; padding-top: 15px ">
+                                                <!-- Contenuto colonna sinistra -->
+                                                {% if firmeRichiedente %}
+                                                    {{ firmeRichiedente.firma.name }}
+                                                    {{ firmeRichiedente.as_p }}
+                                                {% else %}
+                                                    <p>Nessuna firma disponibile per il richiedente</p>
+                                                {% endif %}
+                                            </div>
+                                            <div class="col-md-6 col-12 d-flex align-items-center justify-content-center" style="height: 100%;background-color: rgba(211,164,92,0.29) ; padding-top: 15px ">
+                                                <!-- Contenuto colonna destra -->
+                                                    {% if firmeTitolare %}
+                                                        {{ firmeTitolare.firma.name }}
+                                                        {{ firmeTitolare.as_p }}
+                                                    {% else %}
+                                                        <p>Nessuna firma disponibile per il titolare.</p>
+                                                    {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
                     <input class="btn btn-primary col-10 mt-2 col-md-2 mx-md-0 mx-auto d-block " type="submit" value="Compila PDF">
                 </form>
-
+                
+                
                 {% if user.profile.qualifica == 'PO' or user.profile.qualifica == 'PA' or user.profile.qualifica == 'RU' or user.profile.qualifica == 'RTDA' or user.profile.qualifica == 'RTDB' or user.profile.qualifica == 'RTT' %}                    <hr>
                     <h3>Autorizzazione missione all'estero</h3>
                     <form action="{% url 'RimborsiApp:invia_email_autorizzazione' id=missione.id %}" method="post"
@@ -355,6 +380,17 @@ Cordiali saluti,
             });
         </script>
         <style>
+            .custom-style-choose {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 100%;
+                border: 1px solid #dee2e6;
+                border-radius: 0.25rem;
+                padding: 1rem;
+                margin-bottom: 1rem;
+            }
+        
             a.download {
                 text-decoration: none;
                 color: #212529;

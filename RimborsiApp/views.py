@@ -248,6 +248,11 @@ def resoconto_data(missione):
 def resoconto(request, id):
     if request.method == 'GET':
         missione = get_object_or_404(Missione, pk=id, user=request.user)
+        #--firme
+        firmeRichiedente = Firme_ChooseForm(user_owner=request.user)
+        firmeTitolare = Firme_Shared_ChooseForm(user_guest=request.user)
+
+        #---endfirme
 
         try:
             moduli_missione = ModuliMissione.objects.get(missione=missione)
@@ -279,6 +284,9 @@ def resoconto(request, id):
                                                            'indennita': indennita,
                                                            'totali': totali,
                                                            'anticipo': -missione.anticipo,
+                                                           #firme
+                                                           'firmeRichiedente': firmeRichiedente,
+                                                           'firmeTitolare': firmeTitolare,
                                                            })
         # else:
         #     return render(request, 'Rimborsi/resoconto.html')

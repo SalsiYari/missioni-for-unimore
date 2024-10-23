@@ -525,5 +525,5 @@ class Firme_Shared(models.Model):
         verbose_name_plural = "Firme condivise"
 
     def __str__(self):
-        return f'{self.user_guest} ha il permesso di usare la fira di {self.firma.user_owner}'
+        return f'{self.user_guest} ha il permesso di usare la firma di {self.firma.user_owner} con descrizione: {self.firma.descrizione}'
 

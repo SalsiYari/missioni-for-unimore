@@ -33,6 +33,7 @@ urlpatterns = [
     path('compila_autorizz_dottorandi/<int:id>', compila_pdf.compila_autorizz_dottorandi,
          name='compila_autorizz_dottorandi'),
     path('genera_pdf/<int:id>', compila_pdf.genera_pdf, name='genera_pdf'),
+    #path('genera_pdf/<int:id>/<int:param1>/<int:param2>', compila_pdf.genera_pdf, name='genera_pdf'),
 
     path('invia_email_autorizzazione/<int:id>', views.invia_email_autorizzazione, name='invia_email_autorizzazione'),
 
