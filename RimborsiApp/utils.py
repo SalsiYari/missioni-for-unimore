@@ -14,10 +14,10 @@ import django
 django.setup()
 from bs4 import BeautifulSoup
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponseForbidden, Http404, FileResponse
+from django.http import HttpResponseForbidden, Http404, FileResponse , JsonResponse
 from django.db.models import Q
 from django.template import RequestContext
-from django.shortcuts import get_object_or_404, render_to_response, HttpResponse, redirect
+from django.shortcuts import get_object_or_404, render_to_response, HttpResponse, redirect , render
 from sendfile import sendfile
 from RimborsiApp.models import ModuliMissione, Missione
 from django.utils.encoding import smart_str
@@ -26,6 +26,13 @@ from django.core.files.storage import default_storage
 from django.utils.http import http_date
 
 from RimborsiApp.models import Spesa, SpesaMissione, Pasti, Trasporto, Firme
+'''
+import cv2
+import numpy as np
+'''
+from PIL import Image
+import io
+import os
 
 
 def migra_pernottamenti():
@@ -205,7 +212,8 @@ def pasto_image_preview(request, id, img_field_name):
     # Costruire il percorso per secure_media e richiamare la funzione
     return secure_media(request, pasto.missione.user.id, pasto.missione.id, 'PASTO', img_name)
 
-#------------------------------------------------------------blocco delle firme
+#------------------------------------------------------------image preview1
+'''
 @login_required
 def firma_image_preview(request, id ,img_field_name):       #id è l'id della firma, img_field_name è il nome del campo dell'immagine
     firma = get_object_or_404(Firme, id=id)
@@ -226,8 +234,88 @@ def firma_image_preview(request, id ,img_field_name):       #id è l'id della fi
     if not os.path.exists(image_path):
         raise Http404('Image not found')
     return FileResponse(open(image_path, 'rb'))
+'''
 
+#------------------------------------------------------------image preview2
 
+def firma_image_preview(request, id, img_field_name):
+    firma = get_object_or_404(Firme, id=id)
+    img_field_short_name = img_field_name.split('-')[-1]
+
+    img_url = None
+    if hasattr(firma, img_field_short_name):
+        img_field = getattr(firma, img_field_short_name)
+        if img_field and img_field.url:
+            img_url = img_field.url
+
+    if not img_url:
+        return HttpResponseForbidden('Image not found or not available.')
+
+    img_name = img_url.split('/')[-1]
+    image_path = os.path.join(settings.MEDIA_ROOT, 'users', str(firma.user_owner.id), img_name)
+
+    if not os.path.exists(image_path):
+        raise Http404('Image not found')
+
+    # Rotazione immagine (AJAX)
+    if request.method == 'POST' and request.is_ajax() and 'rotate' in request.POST:
+        try:
+            with Image.open(image_path) as img:
+                img = img.rotate(90, expand=True)
+                img.save(image_path)  # Salva solo in locale senza aggiornare il DB
+            return JsonResponse({'status': 'success'})
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)})
+
+    # Salvataggio immagine nel DB (AJAX con redirect)
+    if request.method == 'POST' and 'save' in request.POST:
+        try:
+            # Salva l'immagine ruotata nel modello
+            firma.image_rotated.name = os.path.join('users', str(firma.user_owner.id), img_name)
+            firma.save()  # Aggiorna il modello nel DB
+            return redirect('/Rimborsi/profile')  # Redireziona l'utente
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': str(e)})
+
+    return render(request, 'Rimborsi/firma_image_preview.html', {'img_url': img_url})
+#------------------------------------------------------------image preview3 per PopUp non funzionante
+'''
+def firma_image_preview(request, id, img_field_name):
+    firma = get_object_or_404(Firme, id=id)
+    img_field_short_name = img_field_name.split('-')[-1]
+
+    img_url = None
+    if hasattr(firma, img_field_short_name):
+        img_field = getattr(firma, img_field_short_name)
+        if img_field and img_field.url:
+            img_url = img_field.url
+
+    if not img_url:
+        return HttpResponseForbidden('Image not found or not available.')
+
+    img_name = img_url.split('/')[-1]
+    image_path = os.path.join(settings.MEDIA_ROOT, 'users', str(firma.user_owner.id), img_name)
+
+    if not os.path.exists(image_path):
+        raise Http404('Image not found')
+
+    # Solo se viene fatta una richiesta AJAX con 'rotate' si entra in questo blocco
+    if request.method == 'POST' and request.is_ajax():
+        if 'rotate' in request.POST:
+            try:
+                with Image.open(image_path) as img:
+                    img = img.rotate(90, expand=True)
+                    img.save(image_path)  # Salva solo in locale senza aggiornare il DB
+                return JsonResponse({'status': 'success'})
+            except Exception as e:
+                return JsonResponse({'status': 'error', 'message': str(e)})
+
+        # Se il POST non è per la rotazione, restituisci un errore
+        return JsonResponse({'status': 'error', 'message': 'Invalid request'})
+
+    # Se è una richiesta GET, visualizza il popup normalmente
+    return render(request, 'Rimborsi/firma_image_preview.html', {'img_url': img_url})
+'''
 
 #------------------------------------------------------------fine blocco delle firme
 
@@ -279,6 +367,81 @@ def secure_media(request, id1, id2, field1, field2):
     if not os.path.exists(image_path):
         raise Http404('Image not found')
     return FileResponse(open(image_path, 'rb'))
+
+
+'''
+def ritaglia_e_ruota_firma(img_path):
+    # Leggi l'immagine
+    img = cv2.imread(img_path)
+
+    # Converti l'immagine in scala di grigi
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+    # Applica una sogliatura per ottenere un'immagine binaria
+    _, thresh = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY_INV)
+
+    # Trova i contorni
+    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    # Trova il rettangolo con l'area minima
+    largest_contour = max(contours, key=cv2.contourArea)
+    rect = cv2.minAreaRect(largest_contour)
+
+    # Ottieni i punti del rettangolo
+    box = cv2.boxPoints(rect)
+    box = np.int0(box)
+
+    # Crea una maschera per estrarre il rettangolo dalla firma
+    mask = np.zeros_like(gray)
+    cv2.drawContours(mask, [box], 0, (255), -1)
+
+    # Applica la maschera per ottenere solo l'area ritagliata
+    firma_ritagliata = cv2.bitwise_and(img, img, mask=mask)
+
+    # Trova le coordinate del bounding box rettangolare per ritagliare l'immagine
+    x, y, w, h = cv2.boundingRect(largest_contour)
+    firma_ritagliata = firma_ritagliata[y:y + h, x:x + w]
+
+    # Estrai l'angolo del rettangolo
+    angle = rect[-1]
+
+    # Correggi l'angolo di rotazione (OpenCV fornisce un angolo negativo per rettangoli orizzontali)
+    if angle < -45:
+        angle = -(90 + angle)
+    else:
+        angle = -angle
+
+    # Ottieni le dimensioni dell'immagine ritagliata
+    (h, w) = firma_ritagliata.shape[:2]
+
+    # Calcola la matrice di rotazione
+    M = cv2.getRotationMatrix2D((w // 2, h // 2), angle, 1.0)
+
+    # Applica la rotazione
+    rotated = cv2.warpAffine(firma_ritagliata, M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
+
+    return rotated
+'''
+
+
+def rotate_image(request, idF):
+    if request.method == "POST":
+        # Carica l'immagine originale
+        firma = get_object_or_404(Firme, pk=idF)
+        image_path = firma.firma.img_firma.path
+
+        image = Image.open(image_path)
+
+        # Ruota l'immagine di 90 gradi
+        rotated_image = image.rotate(-90, expand=True)
+
+        # Salva l'immagine ruotata in un buffer
+        buffer = io.BytesIO()
+        rotated_image.save(buffer, format="JPEG")
+        buffer.seek(0)
+
+        # Restituisci l'immagine ruotata come risposta HTTP
+        return HttpResponse(buffer, content_type="image/jpeg")
 
 
 if __name__ == "__main__":

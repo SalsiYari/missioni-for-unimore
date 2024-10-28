@@ -5,6 +5,7 @@ from crispy_forms.layout import Column, Fieldset, Layout, Row, Submit, HTML
 from dal import autocomplete
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
+from django.db.models.sql.datastructures import Empty
 from django.forms.models import formset_factory, inlineformset_factory, modelformset_factory
 from genericpath import exists
 
@@ -620,7 +621,7 @@ firma_formset = inlineformset_factory(
     User,
     Firme,
     form=FirmaForm,
-    extra=0,
+    extra=1,
     can_delete=True,
     min_num=1,
     fields=['descrizione', 'img_firma']  # Specifica esplicitamente i campi
@@ -711,7 +712,8 @@ class Firme_ChooseForm(forms.ModelForm):
     firma_richiedente = forms.ModelChoiceField(
         queryset=Firme.objects.none(),  # Inizialmente vuoto
         label='Firma del Richiedente',
-        widget=forms.Select(attrs={'class': 'form-control form-control-sm' , "name": "firma_richiedente"})
+        widget=forms.Select(attrs={'class': 'form-control form-control-sm' , "name": "firma_richiedente"}),
+        required = False
     )
 
     class Meta:
@@ -722,21 +724,24 @@ class Firme_ChooseForm(forms.ModelForm):
         user_owner = kwargs.pop('user_owner', None)
         super(Firme_ChooseForm, self).__init__(*args, **kwargs)
         if user_owner:
-            #self.fields['descrizione'].queryset = Firme.objects.filter(user_owner=user_owner).values_list('id', 'descrizione')
-            self.fields['firma_richiedente'].queryset = Firme.objects.filter(user_owner=user_owner)
+            if Firme.objects.filter(user_owner=user_owner).exists():
+                self.fields['firma_richiedente'].queryset = Firme.objects.filter(user_owner=user_owner)
+            else:
+                self.fields['firma_richiedente'].empty_label = 'Nessuna firma disponibile'
 
 class Firme_Shared_ChooseForm(forms.ModelForm):
     firma_titolare = forms.ModelChoiceField(
         queryset=Firme_Shared.objects.none(),
         label='Firma Titolare Fondi',
-        widget=forms.Select(attrs={'class': 'form-control form-control-sm', 'name': 'firma_titolare'})
+        widget=forms.Select(attrs={'class': 'form-control form-control-sm', 'name': 'firma_titolare'}),
+        required = False
     )
 
     class Meta:
         model = Firme_Shared
         fields = ['firma_titolare', ]
         widgets = {
-            'firma': forms.Select(attrs={'class': 'form-control form-control-sm' , "name": "firma_titolare"}),
+            'firma': forms.Select(attrs={'class': 'form-control form-control-sm' , "name": "firma_titolare"} ),
         }
         labels = {
             'firma': 'Firma Titolare Fondi:',
@@ -746,7 +751,10 @@ class Firme_Shared_ChooseForm(forms.ModelForm):
         user_guest = kwargs.pop('user_guest', None)
         super(Firme_Shared_ChooseForm, self).__init__(*args, **kwargs)
         if user_guest:
-            self.fields['firma_titolare'].queryset = Firme_Shared.objects.filter(user_guest=user_guest)
+            if  Firme_Shared.objects.filter(user_guest=user_guest).exists():
+                self.fields['firma_titolare'].queryset = Firme_Shared.objects.filter(user_guest=user_guest)
+            else :
+                self.fields['firma_titolare'].empty_label = 'Nessuna firma condivisa'
 
 #---------------------------- fromsets ----------------------------#
 automobile_formset = inlineformset_factory(User, Automobile, AutomobileForm, extra=0, can_delete=True,

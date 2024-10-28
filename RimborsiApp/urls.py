@@ -51,6 +51,8 @@ urlpatterns = [
     path('firma_image_preview/<int:id>/<str:img_field_name>/', utils.firma_image_preview, name='firma_image_preview'),
 
     path('statistiche', views.statistiche, name='statistiche'),
+
+    path('rotate_image/' , utils.firma_image_preview, name='firma_image_preview'),
 ]
 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

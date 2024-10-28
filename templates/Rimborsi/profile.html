@@ -292,6 +292,12 @@
             $('.popover-dismiss').popover({
                 trigger: 'focus'
             });
+            
+            $('img').mousedown(function (e) {               //way to save image downloading
+              if(e.button == 2) {                           // right click
+                return false;                               // do nothing!
+              }
+            });
         </script>
         <style>
             .select2-container, .select2-container .select2-selection--single {
