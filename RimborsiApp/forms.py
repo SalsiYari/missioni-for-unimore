@@ -310,6 +310,7 @@ class MissioneForm(forms.ModelForm):
         except KeyError:
             self.helper.add_input(Submit('submit', 'Crea'))
 
+
         self.helper.layout = Layout(
             Row(Div('citta_destinazione', css_class="col-sm-6"), Div('stato_destinazione', css_class="col-sm-6")),
             Row(Div('inizio', css_class="col-lg-3 col-sm-6"), Div('inizio_ora', css_class="col-lg-3 col-sm-6"),
@@ -621,7 +622,7 @@ firma_formset = inlineformset_factory(
     User,
     Firme,
     form=FirmaForm,
-    extra=1,
+    extra=0,
     can_delete=True,
     min_num=1,
     fields=['descrizione', 'img_firma']  # Specifica esplicitamente i campi
@@ -633,7 +634,6 @@ class Firme_Shared_Form(forms.ModelForm):   #form per la condivisione di firme
         model = Firme_Shared
         fields = ['firma', 'user_guest']
         widgets = {
-            #se ometto img firma è di default
             'firma': forms.Select(attrs={'class': 'form-control form-control-sm'}),
             'user_guest': forms.Select(attrs={'class': 'form-control form-control-sm'}),
         }
@@ -652,9 +652,10 @@ class Firme_Shared_Form(forms.ModelForm):   #form per la condivisione di firme
             self.fields['user_guest'].queryset = User.objects.exclude(id=user_request.id)
 
 
-firma_shared_formset = inlineformset_factory(User, Firme_Shared, Firme_Shared_Form, extra=0, can_delete=True, min_num=1)
+firma_shared_formset = inlineformset_factory(User, Firme_Shared, Firme_Shared_Form, extra=0, can_delete=True, min_num=1, fields=['firma', 'user_guest'] )
 
-class Firme_Recived_Form(forms.ModelForm):      #form per la ricezione di firme condivise !!DA MODIFICARE
+
+class Firme_Recived_Form(forms.ModelForm):
     user_owner= forms.CharField(required=False)
     desc_firma = forms.CharField(required=False)
 

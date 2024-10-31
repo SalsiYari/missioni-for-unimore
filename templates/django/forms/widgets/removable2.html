@@ -1,0 +1,75 @@
+<h3>Pasti:</h3>
+<form id="pastiForm" action="{% url 'RimborsiApp:salva_pasti' id=missione.id %}" method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {{ pasti_formset.management_form }}
+    <div id="pasti-formset-container">
+        {% for form in pasti_formset.forms %}
+            <div class="card-lg-inline mb-5 mb-md-3 pasti_formset_row dynamic-formset1 text-black d-lg-flex align-items-end"
+                 style="background-color: whitesmoke; padding: 15px; border: 1px solid #ccc;">
+                {% for field in form.visible_fields %}
+                    <div class="form-group mx-1">
+                        {% if forloop.first %}
+                            {% for hidden in form.hidden_fields %}
+                                {{ hidden }}
+                            {% endfor %}
+                        {% endif %}
+                        {% if field.name == 'img_scontrino1' or field.name == 'img_scontrino2' or field.name == 'img_scontrino3' %}
+                            {{ field }}
+                        {% else %}
+                            <label for="{{ field.id_for_label }}">{{ field.label|capfirst }}</label>
+                            {{ field.errors.as_ul }}
+                            <input class="form-field" name="{{ field.name }}" id="{{ field.id_for_label }}" value="{{ field.value }}" />
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endfor %}
+    </div>
+    <div class="text-left-custom" style="text-align: right">
+        <input class="btn btn-primary" type="submit" value="Salva">
+    </div>
+</form>
+
+<script>
+    function sendDataToServer() {
+        // Dati da inviare
+        let dataToSend = {};
+
+        // Recupera i valori di ogni campo del formset
+        document.querySelectorAll('#pasti-formset-container .form-field').forEach(field => {
+            dataToSend[field.name] = field.value || ""; // Aggiunge il valore del campo al payload
+        });
+
+        // Formatta i dati da inviare
+        let formData = new FormData();
+        formData.append('data', JSON.stringify(dataToSend));
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}'); // Necessario per Django
+
+        // Invia i dati in background con fetch
+        fetch("{% url 'RimborsiApp:salva_pasti' id=missione.id %}", {
+            method: 'POST',
+            body: formData
+        }).then(response => {
+            if (!response.ok) {
+                console.error("Errore nella richiesta:", response.statusText);
+            } else {
+                console.log("Dati inviati correttamente!");
+            }
+        });
+    }
+
+    let debounceTimer; // Timer per debouncing dell'invio dei dati
+    function debounce(callback, delay) {
+        clearTimeout(debounceTimer); // Cancella il timer precedente
+        debounceTimer = setTimeout(callback, delay); // Imposta un nuovo timer
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Aggiunge listener per ogni campo
+        document.querySelectorAll('#pasti-formset-container .form-field').forEach(field => {
+            field.addEventListener('input', () => {
+                debounce(() => sendDataToServer(), 2000); // Debounce di 2 secondi
+            });
+        });
+    });
+</script>

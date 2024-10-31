@@ -299,18 +299,17 @@ def general_profile(request, profile_form, page, is_straniero):
 
         firme_formset= firma_formset(instance=request.user, queryset=Firme.objects.filter(user_owner=request.user))
         firme_shared = Firme_Shared_Form(user=request.user)
-        '''firme_recived_formset = firma_recived_formset(
-            queryset=Firme_Shared.objects.filter(
-                firma=Firme.objects.filter(user_owner=request.user)) )'''
+
         firme_recived_formset = firma_recived_formset(queryset=Firme_Shared.objects.filter(user_guest=request.user))
         firme_recived_visual = firma_recived_visualization_formset(queryset=Firme_Shared.objects.filter(firma__in=Firme.objects.filter(user_owner=request.user)))
+
 
         return render(request, page, {'profile_form': profile_form,
                                       'automobili_formset': afs,
                                       'firme_formset': firme_formset,
                                       'firme_shared': firme_shared,
                                       'firme_recived_formset': firme_recived_formset,
-                                        'firme_recived_visual': firme_recived_visual,
+                                      'firme_recived_visual': firme_recived_visual,
         })
 
 
@@ -584,6 +583,7 @@ def concludi_missione(request, id):
 # End: Old version
 ########################
 
+
 @login_required
 def missione(request, id):
     def missione_response(missione):
@@ -656,7 +656,6 @@ def missione(request, id):
             return render(request, 'Rimborsi/missione.html', response)
     else:
         raise Http404
-
 
 ########################
 # BEGIN: Old version
@@ -784,6 +783,31 @@ def salva_pernottamenti(request, id):
             return HttpResponseServerError('Form non valido')
     else:
         return HttpResponseBadRequest()
+
+
+from django.http import JsonResponse
+
+
+def salva_dati_ajax(request, id):
+    if request.method == 'POST' and request.is_ajax():
+        missione = Missione.objects.get(id=id)
+
+        if 'pasti_formset' in request.POST:
+            formset = pasto_formset(request.POST, request.FILES, instance=missione)
+            tipo = 'pasti'
+        elif 'pernottamenti_formset' in request.POST:
+            formset = spesa_formset(request.POST, request.FILES, prefix='pernottamenti')
+            tipo = 'pernottamenti'
+        else:
+            return JsonResponse({'error': 'Formset non valido'}, status=400)
+
+        if formset.is_valid():
+            formset.save()
+            return JsonResponse({'success': f'{tipo.capitalize()} salvati con successo'})
+        else:
+            return JsonResponse({'error': 'Errore nel formset'}, status=400)
+    else:
+        return JsonResponse({'error': 'Metodo non supportato'}, status=400)
 
 
 @login_required
@@ -1024,3 +1048,4 @@ def firma_recived_visualization(request):
         return redirect('RimborsiApp:profile')
 
     return HttpResponseBadRequest()
+

@@ -5,15 +5,22 @@
 
 {% block content %}
     {% spaceless %}
-    
-        <h1>Preview Image</h1>
-    <img id="firma-image" src="{{ img_url }}" alt="Firma Image" style="width: 300px; height: auto;">
+        
+       
+        
+           <div class="container d-flex justify-content-center align-items-center" style="min-height: 90vh;">
+            <div style="max-width: 800px; text-align: center;">
+                <h1>Preview Image</h1>
+                <img id="firma-image" src="{{ img_url }}" alt="Firma Image" style="width: 500px; height: auto;">
+            
+                <br><br>
+            
+                <button id="rotate-button" class="btn btn-primary btn-lg" style="padding-block: 15px;">Ruota Immagine</button>
+                <button id="save-button" class="btn btn-secondary btn-lg" style="padding-block: 15px;">Salva Immagine</button>
+            </div>
+        </div>
 
-    <br><br>
-
-    <button id="rotate-button">Ruota Immagine</button>
-    <button id="save-button">Salva Immagine</button>
-
+        
     <script>
         // Ruotare l'immagine (non salva nel DB)
         $('#rotate-button').on('click', function () {

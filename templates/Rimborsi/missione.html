@@ -7,13 +7,16 @@
     <a class="btn btn-primary" href="{% url 'RimborsiApp:resoconto' missione.id %}" role="button">Resoconto</a>
 {% endblock %}
 
+
 {% block content %}
     {#    {% spaceless %}#}
     {% if user.is_authenticated %}
         {% crispy missione_form %}
 
+        
         <h3>Pasti:</h3>
-        <form action="{% url 'RimborsiApp:salva_pasti' id=missione.id %}" method="post" enctype="multipart/form-data"> {% csrf_token %}
+        <form action="{% url 'RimborsiApp:salva_pasti' id=missione.id %}" method="post" enctype="multipart/form-data"> 
+            {% csrf_token %}
             {{ pasti_formset.management_form }}
             <div id="pasti-formset-container">
                 {% for form in pasti_formset.forms %}
@@ -31,7 +34,7 @@
                                 {% else %}
                                     <label for="{{ field.id_for_label }}">{{ field.label|capfirst }}</label>
                                     {{ field.errors.as_ul }}
-                                    {{ field }}
+                                    {{ field }} 
                                 {% endif %}
                             </div>
                         {% endfor %}
@@ -42,6 +45,8 @@
                 <input class="btn btn-primary" type="submit" value="Salva">
             </div>
         </form>
+        
+        
 
          <hr>
 
@@ -77,6 +82,56 @@
                 <input class="btn btn-primary" type="submit" value="Salva">
             </div>
         </form>
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+            const form = document.querySelector('form[action="{% url 'RimborsiApp:salva_pasti' id=missione.id %}"]');
+            const saveButton = form.querySelector('input[type="submit"]');
+            
+            // Blocca il submit automatico quando premi "Enter"
+            form.addEventListener('submit', function (event) {
+                event.preventDefault(); // Evita il submit tradizionale
+                sendDataToServer(); // Invia i dati in modo asincrono
+            });
+        
+            // Invia i dati ogni volta che un campo del formset viene modificato
+            form.querySelectorAll('.form-group input, .form-group select, .form-group textarea').forEach(function (input) {
+                input.addEventListener('input', function () {
+                    debounce(sendDataToServer, 1000); // Salva asincrono dopo 1s dall'ultima modifica
+                });
+            });
+        
+            function sendDataToServer() {
+                const formData = new FormData(form);  // Usa FormData per gestire i file e gli altri campi
+        
+                fetch("{% url 'RimborsiApp:salva_pasti' id=missione.id %}", {
+                    method: 'POST',
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest' // Identifica la richiesta come Ajax
+                    },
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        console.log("Dati salvati correttamente!");
+                    } else {
+                        console.error("Errore nel salvataggio:", data.errors);
+                    }
+                })
+                .catch(error => {
+                    console.error("Errore nella richiesta:", error);
+                });
+            }
+        
+            // Funzione debounce per evitare chiamate eccessive
+            let debounceTimer;
+            function debounce(callback, delay) {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(callback, delay);
+            }
+        });
+
+        </script>
 
         <hr>
         <h3><a tabindex="0" class="popover-dismiss" role="button" data-toggle="popover"

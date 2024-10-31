@@ -1,392 +1,276 @@
 {% comment %}
-#TODO   QUESTO è IL BACKUP DEL FILE ORIGINALE RESOCONTO.HTML , NON TOCCARE
+#TODO   QUESTO è MISSIONE.HTML ok , NON TOCCARE
 {% endcomment %}
 {% extends "Rimborsi/base.html" %}
 {% load static %}
 {% load crispy_forms_tags %}
 
-{% block title %}Resoconto{% endblock %}
-{% block h1title %}Resoconto Missione
-    {% if not missione.missione_conclusa %}
-        <a class="btn btn-primary" href="{% url 'RimborsiApp:missione' missione.id %}" role="button">Modifica</a>
-    {% endif %}
-    <h4>a {{ missione.citta_destinazione }} dal {{ missione.inizio|date:"d/m/Y" }} (ore {{ missione.inizio_ora|date:"H:i" }})
-        al {{ missione.fine|date:"d/m/Y" }} (ore {{ missione.fine_ora|date:"H:i" }})</h4>
+{% block title %}Missione{% endblock %}
+{% block h1title %}Modifica Missione
+    <a class="btn btn-primary" href="{% url 'RimborsiApp:resoconto' missione.id %}" role="button">Resoconto</a>
 {% endblock %}
 
 {% block content %}
-    {% spaceless %}
-        {% if user.is_authenticated %}
-            {% if missione %}
-                <div style="display: none">
-                    <p id="data_richiesta">{{ missione.modulimissione.kasko|date:"d/m/Y" }}</p>
-                    <p id="autorizzato_da">{{ missione.struttura_fondi }}</p>
-                    <p id="luogo_missione">{{ missione.citta_destinazione }}, {{ missione.stato_destinazione }}</p>
-                    <p id="km_percorsi">{{ km|floatformat:0 }}</p>
-                    <p id="data_inizio_missione">{{ missione.inizio|date:"d/m/Y" }}</p>
-                    <p id="data_fine_missione">{{ missione.fine|date:"d/m/Y" }}</p>
-                    <p id="durata">{{ missione.durata_gg.days }}</p>
-                    <p id="unita_di_misura">giorni</p>
-                    <p id="marca_mezzo">{{ missione.automobile.marca }}</p>
-                    <p id="tipo_mezzo">{{ missione.automobile.modello }}</p>
-                    <p id="targa">{{ missione.automobile.targa }}</p>
-                </div>
-                <table class="table table-sm table-borderless">
-                    <thead>
-                    <tr>
-                        <th></th>
-                        {% for currency, _ in totali.items %}
-                            {% if forloop.last %}
-                                <th>Parziale (EUR)</th>
-                            {% else %}
-                                <th>{{ currency }}</th>
-                            {% endif %}
-                        {% endfor %}
-                    </tr>
-                    </thead>
-                    <tbody>
-                    <tr>
-                        <td>Trasporto</td>
-                        {% for _, value in totali.items %}
-                            <td>{{ value.trasporto |floatformat:2 }}</td>
-                        {% endfor %}
-                    </tr>
-                    <tr>
-                        <td>Pasti</td>
-                        {% for _, value in totali.items %}
-                            <td>{{ value.scontrino |floatformat:2 }}</td>
-                        {% endfor %}
-                    </tr>
-                    <tr>
-                        <td>Pernottamenti</td>
-                        {% for _, value in totali.items %}
-                            <td>{{ value.pernottamento |floatformat:2 }}</td>
-                        {% endfor %}
+    {#    {% spaceless %}#}
+    {% if user.is_authenticated %}
+        {% crispy missione_form %}
 
-                    </tr>
-                    <tr>
-                        <td>Convegni</td>
-                        {% for _, value in totali.items %}
-                            <td>{{ value.convegno |floatformat:2 }}</td>
-                        {% endfor %}
-
-                    </tr>
-                    <tr class="bordered">
-                        <td>Altro</td>
-                        {% for _, value in totali.items %}
-                            <td>{{ value.altrespese |floatformat:2 }}</td>
-                        {% endfor %}
-
-                    </tr>
-                    </tbody>
-                    <tr>
-                        <td class="right"><b>Totale</b></td>
-                        {% for _, value in totali.items %}
-                            <td>{{ value.totale |floatformat:2 }}</td>
-                        {% endfor %}
-                    </tr>
-                    <tr class="bordered">
-                        <td>Indennità Chilometrica ({{ km|floatformat:2 }} km)</td>
-                        {% for _ in totali.keys %}
-                            <td>
+        <h3>Pasti:</h3>
+        <form action="{% url 'RimborsiApp:salva_pasti' id=missione.id %}" method="post" enctype="multipart/form-data"> {% csrf_token %}
+            {{ pasti_formset.management_form }}
+            <div id="pasti-formset-container">
+                {% for form in pasti_formset.forms %}
+                    <div class="card-lg-inline mb-5 mb-md-3 pasti_formset_row dynamic-formset1 text-black d-lg-flex align-items-end"
+                         style="background-color: whitesmoke; padding: 15px; border: 1px solid #ccc;">
+                        {% for field in form.visible_fields %}
+                            <div class="form-group mx-1 ">
                                 {% if forloop.first %}
-                                    {% if indennita is not None %}
-                                        {{ indennita|floatformat:2 }}
-                                    {% else %}
-                                        <b>ERR</b>
-                                    {% endif %}
+                                    {% for hidden in form.hidden_fields %}
+                                            {{ hidden }}
+                                    {% endfor %}
                                 {% endif %}
-                            </td>
-                        {% endfor %}
-                    </tr>
-                    <tr class="bordered">
-                        <td>Anticipo</td>
-                        {% for _ in totali.keys %}
-                            <td>
-                                {% if forloop.last %}
-                                    {% if anticipo is not None %}
-                                        {{ anticipo|floatformat:2 }}
-                                    {% else %}
-                                        <b>ERR</b>
-                                    {% endif %}
+                                {% if field.name == 'img_scontrino1' or field.name == 'img_scontrino2' or field.name == 'img_scontrino3' %}
+                                    {{ field }}
+                                {% else %}
+                                    <label for="{{ field.id_for_label }}">{{ field.label|capfirst }}</label>
+                                    {{ field.errors.as_ul }}
+                                    {{ field }}
                                 {% endif %}
-                            </td>
-                        {% endfor %}
-                    </tr>
-                    <tfoot>
-                    <tr>
-                        <td class="right"><b>Totale</b></td>
-
-                        {% for _ in totali.keys %}
-                            <td>
-                                {% if forloop.first %}
-                                    {{ totali.EUR.totale_indennita|floatformat:2}}
-                                {% elif forloop.last %}
-                                    <b>{{ totali.parziale.totale_indennita_anticipo|floatformat:2 }}</b>
-                                {% endif %}
-                            </td>
-                        {% endfor %}
-                    </tr>
-                    </tfoot>
-                </table>
-                <hr>
-                {% if  moduli_missione_form.non_field_errors %}
-                    <div class="alert alert-danger" role="alert">
-                        {{ moduli_missione_form.non_field_errors }}
-                    </div>
-                {% endif %}
-
-                <h3>Moduli precompilati</h3>
-                <form action="{% url 'RimborsiApp:genera_pdf' id=missione.id  param1=valore_param1 param2=valore_param2%}" method="post"> {% csrf_token %}
-                    <div class="card m-0 p-0">
-                        <div class="card-body p-0">
-                            {{ moduli_missione_form.management_form }}
-                            <div class="row no-gutters">
-                                <div class="col-md-6 col-lg-3 d-flex">
-                                    <div class="table-danger p-4 w-100 d-flex flex-column">
-                                        {{ moduli_missione_form.anticipo|as_crispy_field }}
-                                        {% if missione.modulimissione.anticipo_file %}
-                                            <a class="download" href="{% url 'RimborsiApp:download' missione.id 'anticipo_file' %}">
-                                                <i class="fa fa-file-word-o fa-2x"></i> Richiesta Anticipo
-                                            </a>
-                                        {% else %}
-                                            <p>Richiesta Anticipo</p>
-                                        {% endif %}
-                                    </div>
-                                </div>
-
-                                <div class="col-md-6 col-lg-3 d-flex">
-                                    <div class="table-primary p-4 w-100 d-flex flex-column">
-                                        {{ moduli_missione_form.parte_1|as_crispy_field }}
-                                        {% if missione.modulimissione.parte_1_file %}
-                                            <a class="download" href="{% url 'RimborsiApp:download' missione.id 'parte_1_file' %}">
-                                                <i class="fa fa-file-pdf-o fa-2x"></i> Missione Parte I
-                                            </a>
-                                        {% else %}
-                                            <p>Missione Parte I</p>
-                                        {% endif %}
-                                    </div>
-                                </div>
-
-                                <div class="col-md-6 col-lg-3 d-flex">
-                                    <div class="table-secondary p-4 w-100 d-flex flex-column">
-                                        {{ moduli_missione_form.parte_2|as_crispy_field }}
-                                        {% if missione.modulimissione.parte_2_file %}
-                                            <a class="download" href="{% url 'RimborsiApp:download' missione.id 'parte_2_file' %}">
-                                                <i class="fa fa-file-word-o fa-2x"></i> Missione Parte II
-                                            </a>
-                                        {% else %}
-                                            <p>Missione Parte II</p>
-                                        {% endif %}
-                                    </div>
-                                </div>
-
-                                <div class="col-md-6 col-lg-3 d-flex">
-                                    <div class="table-success p-4 w-100 d-flex flex-column">
-                                        {{ moduli_missione_form.kasko|as_crispy_field }}
-                                        {% if missione.modulimissione.kasko_file %}
-                                            <a class="download" href="{% url 'RimborsiApp:download' missione.id 'kasko_file' %}">
-                                                <i class="fa fa-file-pdf-o fa-2x"></i> Kasko
-                                            </a>
-                                        {% else %}
-                                            <a class="download" target="_blank" href="https://wtr.unimore.it/private/kasko/Richiesta.aspx">
-                                                <i class="fa fa-external-link fa-1x" aria-hidden="true"></i> Kasko
-                                            </a>
-                                        {% endif %}
-                                    </div>
-                                </div>
-
-                                {% if user.profile.qualifica == 'DOTTORANDO' %}
-
-                                <div class="col-md-6 col-lg-3 d-flex">
-                                    <div class="table-warning p-4 w-100 d-flex flex-column">
-                                        {{ moduli_missione_form.dottorandi|as_crispy_field }}
-                                        {% if missione.modulimissione.dottorandi_file %}
-                                            <a class="download" href="{% url 'RimborsiApp:download' missione.id 'dottorandi_file' %}">
-                                                <i class="fa fa-file-pdf-o fa-2x"></i> Autorizzazione Dottorando
-                                            </a>
-                                        {% else %}
-                                            <p>Autorizzazione Dottorando</p>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                                {% endif %}
-
-                                <div class="col-12">
-                                    <div class="table-info p-4">
-                                        {{ moduli_missione_form.atto_notorio|as_crispy_field }}
-                                        {{ moduli_missione_form.dichiarazione_check_std|as_crispy_field }}
-                                        {{ moduli_missione_form.dichiarazione_check_pers|as_crispy_field }}
-                                        {{ moduli_missione_form.atto_notorio_dichiarazione|as_crispy_field }}
-                                        {% if missione.modulimissione.atto_notorio_file %}
-                                            <a class="download" href="{% url 'RimborsiApp:download' missione.id 'atto_notorio_file' %}">
-                                                <i class="fa fa-file-pdf-o fa-2x"></i> Atto Notorio
-                                            </a>
-                                        {% else %}
-                                            <p>Atto di notorietà</p>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                                
                             </div>
-                        </div>
+                        {% endfor %}
                     </div>
-                    <input class="btn btn-primary col-10 mt-2 col-md-2 mx-md-0 mx-auto d-block " type="submit" value="Compila PDF">
-                </form>
-
-                
-                
-                
-                
-                {% if user.profile.qualifica == 'PO' or user.profile.qualifica == 'PA' or user.profile.qualifica == 'RU' or user.profile.qualifica == 'RTDA' or user.profile.qualifica == 'RTDB' or user.profile.qualifica == 'RTT' %}                    <hr>
-                    <h3>Autorizzazione missione all'estero</h3>
-                    <form action="{% url 'RimborsiApp:invia_email_autorizzazione' id=missione.id %}" method="post"
-                          id="autorizzazione_missione_form">{% csrf_token %}
-                        <div class="row">
-                            <div class="form-group col-4">
-                                <label>Destinatari e-mail:</label>
-                                <textarea name="emails" id="emails" style="display: none;"></textarea>
-                                <ul class="list-group" id="list-email">
-                                    <li class='list-group-item py-1'>
-                                        mariagrazia.ianni@unimore.it
-                                        <button type='button' class='btn btn-danger btn-sm delete'><i
-                                                class='fa fa-trash' aria-hidden='true'></i></button>
-                                    </li>
-                                    <li class='list-group-item py-1' name="aaa">
-                                        direttore.dief@unimore.it
-                                        <button type='button' class='btn btn-danger btn-sm delete'><i
-                                                class='fa fa-trash' aria-hidden='true'></i></button>
-                                    </li>
-                                    <li class='list-group-item py-1' name="aaa">
-                                        monica.zaccarelli@unimore.it
-                                        <button type='button' class='btn btn-danger btn-sm delete'><i
-                                                class='fa fa-trash' aria-hidden='true'></i></button>
-                                    </li>
-                                    <li class='list-group-item py-1'>
-                                        {{ user.email }}
-                                        <button type='button' class='btn btn-danger btn-sm delete'><i
-                                                class='fa fa-trash' aria-hidden='true'></i></button>
-                                    </li>
-                                </ul>
-                                {#                                <div class="form-group">#}
-                                <div class="input-group center">
-                                    <label>
-                                        <input id="text-email" type="text" class="form-control">
-                                    </label>
-                                    <span class="input-group-btn">
-                                                <button id="inserisci-email" class="btn btn-secondary"
-                                                        type="button">Inserisci e-mail</button>
-                                        </span>
-                                </div>
-                                {#                                </div>#}
-                            </div>
-                            <div class="form-group col-8">
-                                <label for="textarea-email">Testo e-mail:</label>
-                                <textarea class="form-control" id="textarea-email" name="textarea-email" rows="8">
-Spett.le Dipartimento,
-
-{% if user.profile.sesso == 'M' %}
-il sottoscritto
-{% else %}
-la sottoscritta
-{% endif %}
-{{ user.first_name }} {{ user.last_name }} chiede l'autorizzazione per compiere una missione all'estero dal {{ missione.inizio|date:"d/m/Y" }} al {{ missione.fine|date:"d/m/Y" }} a {{ missione.citta_destinazione }} ({{ missione.stato_destinazione.nome }}).
-Motivo della missione: {{ missione.motivazione }}.
-
-Cordiali saluti,
-{{ user.first_name }} {{ user.last_name }}</textarea>
-                            </div>
-                        </div>
-                        <button type="submit" id="invia-richiesta" class="btn btn-primary">Invia Richiesta</button>
-
-                    </form>
-                {% endif %}
-            {% endif %}
-        {% endif %}
-
-        <div id="send-mail" class="modal" tabindex="-1" role="dialog">
-            <div class="modal-dialog" role="document">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Attenzione</h5>
-                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                            <span aria-hidden="true">&times;</span>
-                        </button>
-                    </div>
-                    <div class="modal-body">
-                        <p>Vuoi davvero inviare la e-mail?</p>
-                    </div>
-                    <div class="modal-footer">
-                        <button id="invia-richiesta-modal" type="button" class="btn btn-primary">Invia</button>
-                        <button type="button" class="btn btn-secondary" data-dismiss="modal">No</button>
-                    </div>
-                </div>
+                {% endfor %}
             </div>
-        </div>
+            <div class="text-left-custom" style="text-align: right">
+                <input class="btn btn-primary" type="submit" value="Salva">
+            </div>
+        </form>
 
-        <script>
-            $(document).ready(function () {
-                $('.delete').click(function () {
-                    $(this).parent().remove();
-                });
-                $('#inserisci-email').click(function (event) {
-                    event.preventDefault();
-                    comment = $('#text-email').val();
-                    $('#text-email').val('');
-                    $('#list-email').append("<li class='list-group-item py-1'>" + comment +
-                        "<button type='button' class='btn btn-danger btn-sm delete'><i class='fa fa-trash' aria-hidden='true'></i></button></li>");
-                    $('.delete').click(function () {
-                        $(this).parent().remove();
-                    });
-                });
-                $('#id_dichiarazione_check_pers').change(function () {
-                    $('#id_atto_notorio_dichiarazione').prop('readonly', function (i, v) {
-                        return !v;
-                    });
-                });
+         <hr>
 
-                $('#invia-richiesta').click(function (e) {
-                    $('#send-mail').modal('show');
-                    e.preventDefault();
-                });
+        <h3>Pernottamenti:</h3>
+        <form action="{% url 'RimborsiApp:salva_pernottamenti' id=missione.id %}" method="post" enctype="multipart/form-data">{% csrf_token %}
+            {{ pernottamenti_formset.management_form }}
+            <div id="pernottamenti-formset-container">
+                {% for form in pernottamenti_formset.forms %}
+                    <div class="card-lg-inline mb-5 mb-md-3 pernottamenti_formset_row text-black"
+                         style="background-color: whitesmoke; padding: 15px; border: 1px solid #ccc;">
+                        <div class="card-body d-lg-flex">
+                            {% for field in form.visible_fields %}
+                                <div class="form-group mx-1 flex-grow-1">
+                                    {% if forloop.first %}
+                                        {% for hidden in form.hidden_fields %}
+                                            {{ hidden }}
+                                        {% endfor %}
+                                    {% endif %}
+                                    {% if field.name == 'img_scontrino' %}
+                                        {{ field }}
+                                    {% else %}
+                                    <label for="{{ field.id_for_label }}">{{ field.label|capfirst }}</label>
+                                    {{ field.errors.as_ul }}
+                                    {{ field }}
+                                    {% endif %}
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+            <div class="text-left-custom" style="text-align: right">
+                <input class="btn btn-primary" type="submit" value="Salva">
+            </div>
+        </form>
 
-                $("#invia-richiesta-modal").click(function () {
-                    let emails = $('#emails');
-                    emails.empty();
-                    $('#list-email').children().each(function () {
-                        emails.append($.trim($(this).text()) + ' ');
-                    });
-                    emails.val($.trim(emails.val()));
-                    $('#autorizzazione_missione_form').submit();
-                });
+        <hr>
+        <h3><a tabindex="0" class="popover-dismiss" role="button" data-toggle="popover"
+               data-trigger="focus" title="Trasporti"
+               data-content="Se una tratta non ha spese, ma deve ricevere un'indennità chilometrica, inserirla popolando il campo spesa a
+            0. Per le tratte che non devono ricevere un'indennità chilometrica lasciare il campo km vuoto."><i
+            class="fa fa-info-circle fa-1x" aria-hidden="true"></i></a> Trasporti:
+        </h3>
+        <form action="{% url 'RimborsiApp:salva_trasporti'  id=missione.id %}" method="post" enctype="multipart/form-data">{% csrf_token %}
+            {{ trasporti_formset.management_form }}
+            <div id="trasporti-formset-container">
+                {% for form in trasporti_formset.forms %}
+                    <div class="card-lg-inline mb-5 mb-md-3 trasporti_formset_row text-black"
+                         style="background-color: whitesmoke; padding: 15px; border: 1px solid #ccc;">
+                        <div class="card-body d-lg-flex">
+                            {% for field in form.visible_fields %}
+                                <div class="form-group mx-1 flex-grow-1">
+                                    {% if forloop.first %}
+                                        {% for hidden in form.hidden_fields %}
+                                            {{ hidden }}
+                                        {% endfor %}
+                                    {% endif %}
+                                    {% if field.name == 'img_scontrino' %}
+                                        {{ field }}
+                                    {% else %}
+                                        <label for="{{ field.id_for_label }}">{{ field.label|capfirst }}</label>
+                                        {{ field.errors.as_ul }}
+                                        {{ field }}
+                                    {% endif %}
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+            <div class="text-left-custom" style="text-align: right">
+                <input class="btn btn-primary" type="submit" value="Salva">
+            </div>
+        </form>
 
+        <hr>
+        <h3>Iscrizione Convegni:</h3>
+        <form action="{% url 'RimborsiApp:salva_convegni' id=missione.id %}" method="post" enctype="multipart/form-data">{% csrf_token %}
+            {{ convegni_formset.management_form }}
+            <div id="convegni-formset-container">
+                {% for form in convegni_formset.forms %}
+                    <div class="card-lg-inline mb-5 mb-md-3 convegni_formset_row text-black"
+                         style="background-color: whitesmoke; padding: 15px; border: 1px solid #ccc;">
+                        <div class="card-body d-lg-flex">
+                            {% for field in form.visible_fields %}
+                                <div class="form-group mx-1 flex-grow-1">
+                                    {% if forloop.first %}
+                                        {% for hidden in form.hidden_fields %}
+                                            {{ hidden }}
+                                        {% endfor %}
+                                    {% endif %}
+                                    {% if field.name == 'img_scontrino' %}
+                                        {{ field }}
+                                    {% else %}
+                                    <label for="{{ field.id_for_label }}">{{ field.label|capfirst }}</label>
+                                    {{ field.errors.as_ul }}
+                                    {{ field }}
+                                    {% endif %}
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+            <div class="text-left-custom" style="text-align: right">
+                <input class="btn btn-primary" type="submit" value="Salva">
+            </div>
+        </form>
+
+        <hr>
+        <h3>Altre Spese:</h3>
+        <form action="{% url 'RimborsiApp:salva_altrespese' id=missione.id %}" method="post" enctype="multipart/form-data">{% csrf_token %}
+            {{ altrespese_formset.management_form }}
+            <div id="altrespese-formset-container">
+                {% for form in altrespese_formset.forms %}
+                    <div class="card-lg-inline mb-5 mb-md-3 altrespese_formset_row text-black"
+                         style="background-color: whitesmoke; padding: 15px; border: 1px solid #ccc;">
+                        <div class="card-body d-lg-flex">
+                            {% for field in form.visible_fields %}
+                                <div class="form-group mx-1 flex-grow-1">
+                                    {% if forloop.first %}
+                                        {% for hidden in form.hidden_fields %}
+                                            {{ hidden }}
+                                        {% endfor %}
+                                    {% endif %}
+                                    {% if field.name == 'img_scontrino' %}
+                                        {{ field }}
+                                    {% else %}
+                                    <label for="{{ field.id_for_label }}">{{ field.label|capfirst }}</label>
+                                    {{ field.errors.as_ul }}
+                                    {{ field }}
+                                    {% endif %}
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+            <div class="text-left-custom" style="text-align: right">
+                <input class="btn btn-primary" type="submit" value="Salva">
+            </div>
+        </form>
+
+    {% endif %}
+
+    <script src="{% static 'RimborsiApp/formset/jquery_formset.js' %}"></script>
+    <script type="text/javascript">
+        $('.pasti_formset_row').formset({
+            addText: 'Aggiungi',
+            deleteText: 'Elimina',
+            prefix: 'pasti_set',
+            ifdelete: false,
+            formCssClass: 'dynamic-formset1',
+        });
+        $('.pernottamenti_formset_row').formset({
+            addText: 'Aggiungi',
+            deleteText: 'Elimina',
+            prefix: 'pernottamenti',
+            formCssClass: 'dynamic-formset2',
+        });
+        $('.trasporti_formset_row').formset({
+            addText: 'Aggiungi',
+            deleteText: 'Elimina',
+            prefix: 'trasporto_set',
+            formCssClass: 'dynamic-formset3',
+        });
+
+        $('.convegni_formset_row').formset({
+            addText: 'Aggiungi',
+            deleteText: 'Elimina',
+            prefix: 'convegni',
+            formCssClass: 'dynamic-formset4',
+        });
+
+        $('.altrespese_formset_row').formset({
+            addText: 'Aggiungi',
+            deleteText: 'Elimina',
+            prefix: 'altrespese',
+            formCssClass: 'dynamic-formset5',
+        });
+
+        $(document).ready(function () {
+            $('#form_scontrino').submit(function () {
+                $("#form_scontrino :disabled").removeAttr('disabled');
             });
-        </script>
-        <style>
-            a.download {
-                text-decoration: none;
-                color: #212529;
+
+            let mezzi = $('#id_mezzi_previsti_1');
+            let mezzi_altrui = $('#id_mezzi_previsti_2');
+            if (!mezzi.is(":checked")) {
+                $('#div_id_automobile').hide();
+                $('#div_id_motivazione_automobile').hide();
+            }
+            if (!mezzi_altrui.is(":checked")) {
+                $('#div_id_automobile_altrui').hide();
             }
 
-            .center {
-                text-align: center;
-                vertical-align: center;
-            }
 
-            .right {
-                text-align: right;
-            }
+            let toggle_mezzi = function () {
+                $('#div_id_automobile').toggle();
+                $('#div_id_motivazione_automobile').toggle();
+            };
+            let toggle_mezzi_altrui = function () {
+                $('#div_id_automobile_altrui').toggle();
+            };
+            mezzi.click(function () {
+                if (mezzi_altrui.is(":checked")) {
+                    toggle_mezzi_altrui();
+                    mezzi_altrui.prop('checked', false);
+                }
+                toggle_mezzi();
+            });
+            mezzi_altrui.click(function () {
+                if (mezzi.is(":checked")) {
+                    toggle_mezzi();
+                    mezzi.prop('checked', false);
+                }
+                toggle_mezzi_altrui();
+            });
 
-            .delete {
-                float: right !important;
-            }
+        });
 
-            tr.bordered {
-                border-bottom: 1px solid #dee2e6;
-            }
-        </style>
-    {% endspaceless %}
+        $('.popover-dismiss').popover({
+            trigger: 'focus'
+        });
+    </script>
+
+    {#    {% endspaceless %}#}
 {% endblock %}
-
-
 
