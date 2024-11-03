@@ -1,4 +1,4 @@
-{% extends "Rimborsi/base.html" %}
+ {% extends "Rimborsi/base.html" %}
 {% load static %}
 {% load crispy_forms_tags %}
 
@@ -13,7 +13,7 @@
     {% if user.is_authenticated %}
         {% crispy missione_form %}
 
-        
+        {% load form_tags %}
         <h3>Pasti:</h3>
         <form action="{% url 'RimborsiApp:salva_pasti' id=missione.id %}" method="post" enctype="multipart/form-data"> 
             {% csrf_token %}
@@ -45,11 +45,11 @@
                 <input class="btn btn-primary" type="submit" value="Salva">
             </div>
         </form>
-        
-        
-
          <hr>
-
+       
+        
+        {% load form_tags %}    {# added modified-data on html template #}
+        
         <h3>Pernottamenti:</h3>
         <form action="{% url 'RimborsiApp:salva_pernottamenti' id=missione.id %}" method="post" enctype="multipart/form-data">{% csrf_token %}
             {{ pernottamenti_formset.management_form }}
@@ -68,9 +68,9 @@
                                     {% if field.name == 'img_scontrino' %}
                                         {{ field }}
                                     {% else %}
-                                    <label for="{{ field.id_for_label }}">{{ field.label|capfirst }}</label>
-                                    {{ field.errors.as_ul }}
-                                    {{ field }}
+                                        <label for="{{ field.id_for_label }}">{{ field.label|capfirst }}</label>
+                                        {{ field.errors.as_ul }}
+                                        {{ field|add_data_modified:"False" }}
                                     {% endif %}
                                 </div>
                             {% endfor %}
@@ -82,57 +82,254 @@
                 <input class="btn btn-primary" type="submit" value="Salva">
             </div>
         </form>
+
+        {# Script pernottamenti funzionante#}
+        {# Script pasti manca ajax su aggiunta  #}
+
+        {% comment %}
+        backup del miglior script ajax
         <script>
-            document.addEventListener('DOMContentLoaded', function () {
-            const form = document.querySelector('form[action="{% url 'RimborsiApp:salva_pasti' id=missione.id %}"]');
-            const saveButton = form.querySelector('input[type="submit"]');
-            
-            // Blocca il submit automatico quando premi "Enter"
-            form.addEventListener('submit', function (event) {
-                event.preventDefault(); // Evita il submit tradizionale
-                sendDataToServer(); // Invia i dati in modo asincrono
-            });
-        
-            // Invia i dati ogni volta che un campo del formset viene modificato
-            form.querySelectorAll('.form-group input, .form-group select, .form-group textarea').forEach(function (input) {
-                input.addEventListener('input', function () {
-                    debounce(sendDataToServer, 1000); // Salva asincrono dopo 1s dall'ultima modifica
-                });
-            });
-        
-            function sendDataToServer() {
-                const formData = new FormData(form);  // Usa FormData per gestire i file e gli altri campi
-        
-                fetch("{% url 'RimborsiApp:salva_pasti' id=missione.id %}", {
-                    method: 'POST',
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest' // Identifica la richiesta come Ajax
-                    },
-                    body: formData
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        console.log("Dati salvati correttamente!");
-                    } else {
-                        console.error("Errore nel salvataggio:", data.errors);
-                    }
-                })
-                .catch(error => {
-                    console.error("Errore nella richiesta:", error);
-                });
-            }
-        
-            // Funzione debounce per evitare chiamate eccessive
             let debounceTimer;
+            const debounceDelay = 10000;
+        
             function debounce(callback, delay) {
                 clearTimeout(debounceTimer);
                 debounceTimer = setTimeout(callback, delay);
             }
-        });
+        
+            function monitorFields(row) {
+                row.querySelectorAll('.form-group input, .form-group select, .form-group textarea').forEach(function (field) {
+                    field.setAttribute('data-modified', "False");
+        
+                    field.addEventListener('input', function () {
+                        this.setAttribute('data-modified', "True");
+                        debounce(sendDataToServer, debounceDelay);
+                    });
+                });
+            }
+        
+            function sendDataToServer() {
+                let dataToSend = [];
+        
+                document.querySelectorAll('.pernottamenti_formset_row').forEach(function (row) {
+                    let formFields = {};
+                    let formModified = false;
+                    //nel caso è un nuovo form devo inviare tutti i campi inseriti anche prima del lasso di tempo del timer
+                    const isNewRow = row.getAttribute('data-new-row') === "True";
+        
+                    row.querySelectorAll('.form-group input, .form-group select, .form-group textarea').forEach(function (field) {
+                        if (field.getAttribute('data-modified') === "True") {
+                            formFields[field.name] = field.value;
+                            formModified = true;
+                            field.setAttribute('data-modified', "False");
+                        }
+                        /*if (isNewRow || field.getAttribute('data-modified') === "True") {
+                            formFields[field.name] = field.value;
+                            formModified = true;
+                            field.setAttribute('data-modified', "False");
+                    } */
+                    });
+        
+                    if (formModified) {
+                        // Prima recupera l'ID nascosto
+                        const hiddenId = row.querySelector('input[name$="-id"]');
+                        if (hiddenId) {
+                            formFields[hiddenId.name] = hiddenId.value;
+                        }
+                        dataToSend.push(formFields);
+                    }
+                    // Se la riga è nuova, rimuovi l'attributo `data-new-row`
+                    /*if (isNewRow) {
+                        row.setAttribute('data-new-row', "False");
+                    } */
+                });
+        
+                if (dataToSend.length > 0) {  
+                    fetch("{% url 'RimborsiApp:salva_pernottamenti' id=missione.id %}", {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',  // Indica che stai inviando JSON
+                            'X-Requested-With': 'XMLHttpRequest',  // Indica che è una richiesta AJAX
+                            'X-CSRFToken': '{{ csrf_token }}'
+                        },
+                        body: JSON.stringify({ data: dataToSend })  // Invio del corpo come JSON
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log("Dati salvati:", data);
+                    })
+                    .catch(error => console.error('Errore:', error));
+                }
+            }
+        
+            document.addEventListener('DOMContentLoaded', function () {
+                document.querySelectorAll('.pernottamenti_formset_row').forEach(function (row) {
+                    monitorFields(row);
+                });
+        
+                document.querySelector('form').addEventListener('submit', function (event) {
+                    event.preventDefault();
+                });
+        
+                const container = document.getElementById('pernottamenti-formset-container');
+                const observer = new MutationObserver(function (mutations) {
+                    mutations.forEach(function (mutation) {
+                        if (mutation.type === 'childList') {
+                            mutation.addedNodes.forEach(function (newNode) {
+                                if (newNode.classList.contains('pernottamenti_formset_row')) {
+                                    // Indica che questa riga è nuova
+                                    // newNode.setAttribute('data-new-row', "True");
+                                    monitorFields(newNode);
+                                }
+                            });
+                        }
+                    });
+                });
+        
+                observer.observe(container, { childList: true, subtree: true });
+            });
+        </script>
+        {% endcomment %}
 
+        <script>
+            let debounceTimer;
+            const debounceDelayFormset1 = 5000;  // Delay del primo formset (pasti)
+            const debounceDelayFormset2 = 5000;   // Delay del secondo formset (pernottamenti)
+        
+            //ottimizziamo le chiamate per evitare troppi invii ravvicinati 
+            function debounce(callback, delay) {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(callback, delay);
+            }
+            //traccia quali campi sono stati modificati, invia automaticamente i dati al server quando un campo viene modificato (passa a debounce() sendDatatoServer)
+            function monitorFields(row, formType) {
+                row.querySelectorAll('.form-group input, .form-group select, .form-group textarea').forEach(function (field) {
+                    field.setAttribute('data-modified', "False");
+        
+                    field.addEventListener('input', function () {
+                        this.setAttribute('data-modified', "True");
+                        const delay = formType === 'pernottamenti' ? debounceDelayFormset1 : debounceDelayFormset2;
+                        debounce(() => sendDataToServer(formType), delay);
+                    });
+                });
+            }
+        
+            function sendDataToServer(formType) {
+                if (formType === 'pernottamenti') {
+                    let dataToSend = [];
+                    
+                    document.querySelectorAll('.pernottamenti_formset_row').forEach(function (row) {
+                        let formFields = {};
+                        let formModified = false;
+                        const isNewRow = row.getAttribute('data-new-row') === "True";
+        
+                        row.querySelectorAll('.form-group input, .form-group select, .form-group textarea').forEach(function (field) {
+                            if (field.getAttribute('data-modified') === "True") {
+                                formFields[field.name] = field.value;
+                                formModified = true;
+                                field.setAttribute('data-modified', "False");
+                            }
+                        });
+        
+                        if (formModified) {
+                            const hiddenId = row.querySelector('input[name$="-id"]');
+                            if (hiddenId) {
+                                formFields[hiddenId.name] = hiddenId.value;
+                            }
+                            dataToSend.push(formFields);
+                        }
+                    });
+        
+                    if (dataToSend.length > 0) {  
+                        fetch("{% url 'RimborsiApp:salva_pernottamenti' id=missione.id %}", {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'X-CSRFToken': '{{ csrf_token }}'
+                            },
+                            body: JSON.stringify({ data: dataToSend })
+                        })
+                        .then(response => response.json())
+                        .then(data => console.log("Dati pernottamenti salvati:", data))
+                        .catch(error => console.error('Errore:', error));
+                    }
+                } else if (formType === 'pasti') {
+                    const form = document.querySelector('form[action="{% url 'RimborsiApp:salva_pasti' id=missione.id %}"]');
+                    const formData = new FormData(form);
+        
+                    fetch("{% url 'RimborsiApp:salva_pasti' id=missione.id %}", {
+                        method: 'POST',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            console.log("Dati pasti salvati correttamente!");
+                        } else {
+                            console.error("Errore nel salvataggio pasti:", data.errors);
+                        }
+                    })
+                    .catch(error => console.error("Errore nella richiesta:", error));
+                }
+            }
+        
+            document.addEventListener('DOMContentLoaded', function () {
+                // Monitora i campi per il formset "pernottamenti"
+                document.querySelectorAll('.pernottamenti_formset_row').forEach(function (row) {
+                    monitorFields(row, 'pernottamenti');
+                });
+        
+                // Monitora i campi per il formset "pasti"
+                const pastiForm = document.querySelector('form[action="{% url 'RimborsiApp:salva_pasti' id=missione.id %}"]');
+                if (pastiForm) {
+                    pastiForm.querySelectorAll('.form-group input, .form-group select, .form-group textarea').forEach(function (input) {
+                        input.addEventListener('input', function () {
+                            debounce(() => sendDataToServer('pasti'), debounceDelayFormset2);
+                        });
+                    });
+        
+                    pastiForm.addEventListener('submit', function (event) {
+                        event.preventDefault();
+                        sendDataToServer('pasti');
+                    });
+                }
+        
+                // Observer per entrambi i container
+                const pernottamentiContainer = document.getElementById('pernottamenti-formset-container');
+                const pastiContainer = document.getElementById('pasti-formset-container');  // Assicurati che esista nel DOM
+        
+                const observer = new MutationObserver(function (mutations) {
+                    mutations.forEach(function (mutation) {
+                        if (mutation.type === 'childList') {
+                            mutation.addedNodes.forEach(function (newNode) {
+                                if (newNode.classList.contains('pernottamenti_formset_row')) {
+                                    monitorFields(newNode, 'pernottamenti');
+                                }
+                                if (newNode.classList.contains('pasti_formset_row')) { // Assicurati di usare la classe corretta
+                                    monitorFields(newNode, 'pasti');
+                                }
+                            });
+                        }
+                    });
+                });
+        
+                // Avvia l'observer su entrambi i formset container
+                if (pernottamentiContainer) {
+                    observer.observe(pernottamentiContainer, { childList: true, subtree: true });
+                }
+                if (pastiContainer) {
+                    observer.observe(pastiContainer, { childList: true, subtree: true });
+                }
+            });
         </script>
 
+
+        
+        
         <hr>
         <h3><a tabindex="0" class="popover-dismiss" role="button" data-toggle="popover"
                data-trigger="focus" title="Trasporti"

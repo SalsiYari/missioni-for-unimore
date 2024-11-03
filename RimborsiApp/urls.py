@@ -7,7 +7,6 @@ from django.conf import settings
 
 app_name = 'RimborsiApp'
 urlpatterns = [
-    path('salva-dati-ajax/<int:id>/', views.salva_dati_ajax, name='salva_dati_ajax'),
     path('firma_recived_visualization_formset/', views.firma_recived_visualization, name='firma_recived_visualization'),
     #path('firma_recived/', views.firma_recived, name='firma_recived'),
     path('firma_shared/', views.firma_shared, name='firma_shared'),

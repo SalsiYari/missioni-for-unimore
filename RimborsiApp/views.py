@@ -7,13 +7,14 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models import Sum
-from django.http import Http404, HttpResponseBadRequest, HttpResponseNotFound, HttpResponseServerError
+from django.http import Http404, HttpResponseBadRequest, HttpResponseNotFound, HttpResponseServerError , JsonResponse
 from django.shortcuts import redirect, render, reverse, get_object_or_404
 from django.core.mail import send_mail
 from .forms import *
 from .models import *
 from .utils import *
 from Rimborsi import settings
+import json
 
 
 def maintenance(request):
@@ -759,56 +760,88 @@ def salva_pasti(request, id):
         return HttpResponseBadRequest()
 
 
+#funzione pernottamenti
 @login_required
 def salva_pernottamenti(request, id):
+    missione = get_object_or_404(Missione, user=request.user, id=id)
+
     if request.method == 'POST':
-        missione = Missione.objects.get(user=request.user, id=id)
-        pernottamenti_formset = spesa_formset(request.POST, request.FILES, prefix='pernottamenti')
-        if pernottamenti_formset.is_valid():
-            for form in pernottamenti_formset.forms:
-                if form.cleaned_data.get('DELETE'):
-                    form.instance.delete()
-                    SpesaMissione.objects.filter(spesa=form.instance).delete()
-                else:
-                    img_scontrino = form.instance.img_scontrino
-                    form.instance.img_scontrino = None
-                    instance = form.save(commit=False)
-                    instance.save()
-                    SpesaMissione.objects.update_or_create(missione=missione, spesa=instance, tipo='PERNOTTAMENTO')
-                    if img_scontrino:
-                        instance.img_scontrino = img_scontrino
-                        instance.save()
-            return redirect('RimborsiApp:missione', id)
-        else:
-            return HttpResponseServerError('Form non valido')
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':  # Richiesta AJAX
+            return handle_ajax_request(request, missione)
+        else:  # Submit di un formset completo
+            return handle_full_formset(request, missione)
     else:
         return HttpResponseBadRequest()
 
 
-from django.http import JsonResponse
+def handle_full_formset(request, missione):
+    pernottamenti_formset = spesa_formset(request.POST, request.FILES, prefix='pernottamenti')
 
-
-def salva_dati_ajax(request, id):
-    if request.method == 'POST' and request.is_ajax():
-        missione = Missione.objects.get(id=id)
-
-        if 'pasti_formset' in request.POST:
-            formset = pasto_formset(request.POST, request.FILES, instance=missione)
-            tipo = 'pasti'
-        elif 'pernottamenti_formset' in request.POST:
-            formset = spesa_formset(request.POST, request.FILES, prefix='pernottamenti')
-            tipo = 'pernottamenti'
-        else:
-            return JsonResponse({'error': 'Formset non valido'}, status=400)
-
-        if formset.is_valid():
-            formset.save()
-            return JsonResponse({'success': f'{tipo.capitalize()} salvati con successo'})
-        else:
-            return JsonResponse({'error': 'Errore nel formset'}, status=400)
+    if pernottamenti_formset.is_valid():
+        for form in pernottamenti_formset.forms:
+            if form.cleaned_data.get('DELETE'):
+                form.instance.delete()
+                SpesaMissione.objects.filter(spesa=form.instance).delete()
+            else:
+                img_scontrino = form.instance.img_scontrino
+                form.instance.img_scontrino = None
+                instance = form.save(commit=False)
+                instance.save()
+                SpesaMissione.objects.update_or_create(
+                    missione=missione,
+                    spesa=instance,
+                    tipo='PERNOTTAMENTO'
+                )
+                if img_scontrino:
+                    instance.img_scontrino = img_scontrino
+                    instance.save()
+        return redirect('RimborsiApp:missione', id=missione.id)
     else:
-        return JsonResponse({'error': 'Metodo non supportato'}, status=400)
 
+        # Diagnostica gli errori di validazione del formset
+        errors = pernottamenti_formset.errors
+        print("Formset non valido. Errori:", errors)
+        return HttpResponseServerError(f"Form non valido. Errori: {errors}")
+
+
+def handle_ajax_request(request, missione):
+    try:
+        datas = json.loads(request.body).get('data', [])  # Estrai i dati JSON
+        spesa_id = None
+
+        for form_data in datas:                  #per ogni form diverso
+            valori = {}
+            for key, value in form_data.items():#per ogni coppia di campi nel form
+                #prende l'ultimo elemento della stringa key
+                new_key = key.split('-')[-1]  # Questo prenderà 'importo' da 'pernottamenti-0-importo'
+
+                if new_key == 'id':
+                    if value == '':
+                        spesa_id = None
+                    else:
+                        spesa_id = value
+                else:
+                    valori[new_key] = value
+
+            if spesa_id:
+                spesa = Spesa.objects.get(id=spesa_id)
+                # Aggiorna campi esistenti
+                for field, value in valori.items():
+                    setattr(spesa, field, value)        # Aggiorna i campi della spesa -->setattr(instance, attribute, value)
+                spesa.save()
+
+            else:
+                # Crea una nuova istanza di Spesa se non esiste
+                spesa = Spesa(**valori)
+                if spesa.data:
+                    spesa.save()
+                    SpesaMissione.objects.update_or_create(missione=missione, spesa=spesa, tipo='PERNOTTAMENTO')
+
+        return JsonResponse({"message": "Dati salvati correttamente"}, status=200)
+    except (json.JSONDecodeError, KeyError, ValueError) as e:
+        return HttpResponseBadRequest(f"Errore nel parsing dei dati: {e}")
+
+#fine funzione pernottamenti
 
 @login_required
 def salva_trasporti(request, id):

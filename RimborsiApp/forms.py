@@ -428,6 +428,14 @@ class SpesaForm(forms.ModelForm):
             #'img_scontrino': forms.ClearableFileInput(attrs={'class': 'form-control form-control-sm'}),
             'img_scontrino': CustomClearableFileInput(attrs={'class': 'form-control form-control-sm', 'id': 'img_scontrino_input'}),
         }
+    def __init__(self, *args, **kwargs):
+        data = kwargs.pop('data_ggmmaaaa', None)
+        importo = kwargs.pop('importo', None)
+        valuta = kwargs.pop('valuta', None)
+        descrizione = kwargs.pop('descrizione', None)
+        img_scontrino = kwargs.pop('img_scontrino', None)
+        super(SpesaForm, self).__init__(*args, **kwargs)
+
 
 
 class TrasportoForm(forms.ModelForm):
