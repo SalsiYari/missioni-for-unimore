@@ -759,9 +759,8 @@ def salva_pasti(request, id):
     else:
         return HttpResponseBadRequest()
 
-
-#funzione pernottamenti
-@login_required
+#funzione pernottamenti funzionante Level(1)
+'''@login_required
 def salva_pernottamenti(request, id):
     missione = get_object_or_404(Missione, user=request.user, id=id)
 
@@ -840,8 +839,7 @@ def handle_ajax_request(request, missione):
         return JsonResponse({"message": "Dati salvati correttamente"}, status=200)
     except (json.JSONDecodeError, KeyError, ValueError) as e:
         return HttpResponseBadRequest(f"Errore nel parsing dei dati: {e}")
-
-#fine funzione pernottamenti
+'''
 
 @login_required
 def salva_trasporti(request, id):
@@ -856,7 +854,8 @@ def salva_trasporti(request, id):
     else:
         return HttpResponseBadRequest()
 
-
+#salva_convegni e salva_altrespese originali  Level1(1):
+'''
 @login_required
 def salva_altrespese(request, id):
     if request.method == 'POST':
@@ -908,7 +907,162 @@ def salva_convegni(request, id):
     else:
         return HttpResponseBadRequest()
 
+'''
 
+#salva_convegni + salva_altrespese + salva_pernottamentifrom  Level(2)
+'''
+@login_required
+def salva_spese(request, id, tipo_spesa, prefix):
+    """
+    Salva le spese per una missione, con gestione di diversi tipi di spese.
+
+    tipo_spesa: Tipo di spesa ('ALTRO', 'CONVEGNO', 'PERNOTTAMENTO')
+    prefix: Prefix per il formset ('altrespese', 'convegni', 'pernottamenti')
+    """
+    if request.method == 'POST':
+        missione = get_object_or_404(Missione, user=request.user, id=id)
+        spese_formset = spesa_formset(request.POST, request.FILES, prefix=prefix)
+
+        if spese_formset.is_valid():
+            for form in spese_formset.forms:
+                if form.cleaned_data.get('DELETE'):
+                    form.instance.delete()
+                    SpesaMissione.objects.filter(spesa=form.instance).delete()
+                else:
+                    img_scontrino = form.instance.img_scontrino
+                    form.instance.img_scontrino = None
+                    instance = form.save(commit=False)
+                    instance.save()
+                    SpesaMissione.objects.update_or_create(
+                        missione=missione,
+                        spesa=instance,
+                        tipo=tipo_spesa
+                    )
+                    if img_scontrino:
+                        instance.img_scontrino = img_scontrino
+                        instance.save()
+
+            return redirect('RimborsiApp:missione', id=missione.id)
+        else:
+            # Diagnostica gli errori di validazione del formset
+            errors = spese_formset.errors
+            print(f"Formset non valido per tipo {tipo_spesa}. Errori:", errors)
+            return HttpResponseServerError(f"Form non valido. Errori: {errors}")
+    else:
+        return HttpResponseBadRequest("Metodo non consentito")
+
+
+@login_required
+def salva_altrespese(request, id):
+    # Chiamata specifica per le spese di tipo 'ALTRO'
+    return salva_spese(request, id, 'ALTRO', 'altrespese')
+
+
+@login_required
+def salva_convegni(request, id):
+    # Chiamata specifica per le spese di tipo 'CONVEGNO'
+    return salva_spese(request, id, 'CONVEGNO', 'convegni')
+
+
+@login_required
+def salva_pernottamenti(request, id):
+    # Chiamata specifica per le spese di tipo 'PERNOTTAMENTO'
+    return salva_spese(request, id, 'PERNOTTAMENTO', 'pernottamenti')
+'''
+
+#salva_convegni + salva_altrespese + salva_pernottamenti + salva_trasporti Level(3)
+
+@login_required
+def salva_spese(request, id, tipo_spesa, prefix):
+    """
+    Salva le spese per una missione, con gestione di diversi tipi di spese.
+
+    tipo_spesa: Tipo di spesa ('ALTRO', 'CONVEGNO', 'PERNOTTAMENTO')
+    prefix: Prefix per il formset ('altrespese', 'convegni', 'pernottamenti')
+    """
+    missione = get_object_or_404(Missione, user=request.user, id=id)
+
+    if request.method == 'POST':
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':  # Richiesta AJAX
+            return handle_ajax_request(request, missione, tipo_spesa)
+        else:  # Submit di un formset completo
+            return handle_full_formset(request, missione, tipo_spesa, prefix)
+    else:
+        return HttpResponseBadRequest("Metodo non consentito")
+
+
+def handle_full_formset(request, missione, tipo_spesa, prefix):
+    spese_formset = spesa_formset(request.POST, request.FILES, prefix=prefix)
+
+    if spese_formset.is_valid():
+        for form in spese_formset.forms:
+            if form.cleaned_data.get('DELETE'):
+                form.instance.delete()
+                SpesaMissione.objects.filter(spesa=form.instance).delete()
+            else:
+                img_scontrino = form.instance.img_scontrino
+                form.instance.img_scontrino = None
+                instance = form.save(commit=False)
+                instance.save()
+                SpesaMissione.objects.update_or_create(
+                    missione=missione,
+                    spesa=instance,
+                    tipo=tipo_spesa
+                )
+                if img_scontrino:
+                    instance.img_scontrino = img_scontrino
+                    instance.save()
+        return redirect('RimborsiApp:missione', id=missione.id)
+    else:
+        errors = spese_formset.errors
+        return HttpResponseServerError(f"Form non valido. Errori: {errors}")
+
+
+def handle_ajax_request(request, missione, tipo_spesa):
+    try:
+        datas = json.loads(request.body).get('data', [])
+        for form_data in datas:
+            valori = {}
+            spesa_id = None
+            for key, value in form_data.items():
+                new_key = key.split('-')[-1]
+                if new_key == 'id':
+                    spesa_id = value if value else None
+                else:
+                    valori[new_key] = value
+
+            if spesa_id:
+                spesa = Spesa.objects.get(id=spesa_id)
+                for field, value in valori.items():
+                    setattr(spesa, field, value)
+                spesa.save()
+            else:
+                spesa = Spesa(**valori)
+                if spesa.data:
+                    spesa.save()
+                    SpesaMissione.objects.update_or_create(missione=missione, spesa=spesa, tipo=tipo_spesa)
+
+        return JsonResponse({"message": "Dati salvati correttamente"}, status=200)
+    except (json.JSONDecodeError, KeyError, ValueError) as e:
+        return HttpResponseBadRequest(f"Errore nel parsing dei dati: {e}")
+
+
+@login_required
+def salva_altrespese(request, id):
+    return salva_spese(request, id, 'ALTRO', 'altrespese')
+
+
+@login_required
+def salva_convegni(request, id):
+    return salva_spese(request, id, 'CONVEGNO', 'convegni')
+
+
+@login_required
+def salva_pernottamenti(request, id):
+    return salva_spese(request, id, 'PERNOTTAMENTO', 'pernottamenti')
+
+
+############ fine sezione di  modifica misisone e aggiunta relative spese
 @login_required
 def cancella_missione(request, id):
     try:

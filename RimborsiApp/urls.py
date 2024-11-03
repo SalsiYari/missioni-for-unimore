@@ -7,6 +7,7 @@ from django.conf import settings
 
 app_name = 'RimborsiApp'
 urlpatterns = [
+# urls.py
     path('firma_recived_visualization_formset/', views.firma_recived_visualization, name='firma_recived_visualization'),
     #path('firma_recived/', views.firma_recived, name='firma_recived'),
     path('firma_shared/', views.firma_shared, name='firma_shared'),
