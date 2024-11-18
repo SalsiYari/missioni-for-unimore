@@ -41,15 +41,12 @@
                     </div>
                 {% endfor %}
             </div>
-            <div class="text-left-custom" style="text-align: right">
-                <input class="btn btn-primary" type="submit" value="Salva">
-            </div>
         </form>
          <hr>
-       
+
         
         {% load form_tags %}    {# added modified-data on html template #}
-        
+
         <h3>Pernottamenti:</h3>
         <form action="{% url 'RimborsiApp:salva_pernottamenti' id=missione.id %}" method="post" enctype="multipart/form-data">{% csrf_token %}
             {{ pernottamenti_formset.management_form }}
@@ -83,146 +80,6 @@
             </div>
         </form>
 
-        
-        {% comment %}
-        backup script pernottamenti e pasti funzionante
-        <script>
-            let debounceTimer;
-            const debounceDelayFormset1 = 5000;  // Delay del primo formset (pasti)
-            const debounceDelayFormset2 = 5000;   // Delay del secondo formset (pernottamenti)
-        
-            //ottimizziamo le chiamate per evitare troppi invii ravvicinati 
-            function debounce(callback, delay) {
-                clearTimeout(debounceTimer);
-                debounceTimer = setTimeout(callback, delay);
-            }
-            //traccia quali campi sono stati modificati, invia automaticamente i dati al server quando un campo viene modificato (passa a debounce() sendDatatoServer)
-            function monitorFields(row, formType) {
-                row.querySelectorAll('.form-group input, .form-group select, .form-group textarea').forEach(function (field) {
-                    field.setAttribute('data-modified', "False");
-        
-                    field.addEventListener('input', function () {
-                        this.setAttribute('data-modified', "True");
-                        const delay = formType === 'pernottamenti' ? debounceDelayFormset1 : debounceDelayFormset2;
-                        debounce(() => sendDataToServer(formType), delay);
-                    });
-                });
-            }
-        
-            function sendDataToServer(formType) {
-                if (formType === 'pernottamenti') {
-                    let dataToSend = [];
-                    
-                    document.querySelectorAll('.pernottamenti_formset_row').forEach(function (row) {
-                        let formFields = {};
-                        let formModified = false;
-                        const isNewRow = row.getAttribute('data-new-row') === "True";
-        
-                        row.querySelectorAll('.form-group input, .form-group select, .form-group textarea').forEach(function (field) {
-                            if (field.getAttribute('data-modified') === "True") {
-                                formFields[field.name] = field.value;
-                                formModified = true;
-                                field.setAttribute('data-modified', "False");
-                            }
-                        });
-        
-                        if (formModified) {
-                            const hiddenId = row.querySelector('input[name$="-id"]');
-                            if (hiddenId) {
-                                formFields[hiddenId.name] = hiddenId.value;
-                            }
-                            dataToSend.push(formFields);
-                        }
-                    });
-        
-                    if (dataToSend.length > 0) {  
-                        fetch("{% url 'RimborsiApp:salva_pernottamenti' id=missione.id %}", {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-Requested-With': 'XMLHttpRequest',
-                                'X-CSRFToken': '{{ csrf_token }}'
-                            },
-                            body: JSON.stringify({ data: dataToSend })
-                        })
-                        .then(response => response.json())
-                        .then(data => console.log("Dati pernottamenti salvati:", data))
-                        .catch(error => console.error('Errore:', error));
-                    }
-                } else if (formType === 'pasti') {
-                    const form = document.querySelector('form[action="{% url 'RimborsiApp:salva_pasti' id=missione.id %}"]');
-                    const formData = new FormData(form);
-        
-                    fetch("{% url 'RimborsiApp:salva_pasti' id=missione.id %}", {
-                        method: 'POST',
-                        headers: {
-                            'X-Requested-With': 'XMLHttpRequest'
-                        },
-                        body: formData
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            console.log("Dati pasti salvati correttamente!");
-                        } else {
-                            console.error("Errore nel salvataggio pasti:", data.errors);
-                        }
-                    })
-                    .catch(error => console.error("Errore nella richiesta:", error));
-                }
-            }
-        
-            document.addEventListener('DOMContentLoaded', function () {
-                // Monitora i campi per il formset "pernottamenti"
-                document.querySelectorAll('.pernottamenti_formset_row').forEach(function (row) {
-                    monitorFields(row, 'pernottamenti');
-                });
-        
-                // Monitora i campi per il formset "pasti"
-                const pastiForm = document.querySelector('form[action="{% url 'RimborsiApp:salva_pasti' id=missione.id %}"]');
-                if (pastiForm) {
-                    pastiForm.querySelectorAll('.form-group input, .form-group select, .form-group textarea').forEach(function (input) {
-                        input.addEventListener('input', function () {
-                            debounce(() => sendDataToServer('pasti'), debounceDelayFormset2);
-                        });
-                    });
-        
-                    pastiForm.addEventListener('submit', function (event) {
-                        event.preventDefault();
-                        sendDataToServer('pasti');
-                    });
-                }
-        
-                // Observer per entrambi i container
-                const pernottamentiContainer = document.getElementById('pernottamenti-formset-container');
-                const pastiContainer = document.getElementById('pasti-formset-container');  // Assicurati che esista nel DOM
-        
-                const observer = new MutationObserver(function (mutations) {
-                    mutations.forEach(function (mutation) {
-                        if (mutation.type === 'childList') {
-                            mutation.addedNodes.forEach(function (newNode) {
-                                if (newNode.classList.contains('pernottamenti_formset_row')) {
-                                    monitorFields(newNode, 'pernottamenti');
-                                }
-                                if (newNode.classList.contains('pasti_formset_row')) { // Assicurati di usare la classe corretta
-                                    monitorFields(newNode, 'pasti');
-                                }
-                            });
-                        }
-                    });
-                });
-        
-                // Avvia l'observer su entrambi i formset container
-                if (pernottamentiContainer) {
-                    observer.observe(pernottamentiContainer, { childList: true, subtree: true });
-                }
-                if (pastiContainer) {
-                    observer.observe(pastiContainer, { childList: true, subtree: true });
-                }
-            });
-        </script>
-        {% endcomment %}
-        
         <hr>
         <h3><a tabindex="0" class="popover-dismiss" role="button" data-toggle="popover"
                data-trigger="focus" title="Trasporti"
@@ -262,192 +119,7 @@
             </div>
         </form>
 
-        {% comment %}
-        <script>
-            let debounceTimer;
-            const debounceDelayFormset1 = 5000;  // Delay per "pernottamenti"
-            const debounceDelayFormset2 = 5000;  // Delay per "pasti"
-            const debounceDelayFormset3 = 5000;  // Delay per "trasporti"
-        
-            // Funzione debounce per evitare troppi invii ravvicinati
-            function debounce(callback, delay) {
-                clearTimeout(debounceTimer);
-                debounceTimer = setTimeout(callback, delay);
-            }
-        
-            // Funzione per monitorare i campi di un formset e inviare dati al server
-            function monitorFields(row, formType) {
-                row.querySelectorAll('.form-group input, .form-group select, .form-group textarea').forEach(function (field) {
-                    field.setAttribute('data-modified', "False");
-        
-                    field.addEventListener('input', function () {
-                        this.setAttribute('data-modified', "True");
-                        const delay = formType === 'pernottamenti' ? debounceDelayFormset1 :
-                                      formType === 'pasti' ? debounceDelayFormset2 :
-                                      debounceDelayFormset3;
-                        debounce(() => sendDataToServer(formType), delay);
-                    });
-                });
-            }
-        
-            function sendDataToServer(formType) {
-                if (formType === 'pernottamenti') {
-                    let dataToSend = [];
-                    document.querySelectorAll('.pernottamenti_formset_row').forEach(function (row) {
-                        let formFields = {};
-                        let formModified = false;
-        
-                        row.querySelectorAll('.form-group input, .form-group select, .form-group textarea').forEach(function (field) {
-                            if (field.getAttribute('data-modified') === "True") {
-                                formFields[field.name] = field.value;
-                                formModified = true;
-                                field.setAttribute('data-modified', "False");
-                            }
-                        });
-        
-                        if (formModified) {
-                            const hiddenId = row.querySelector('input[name$="-id"]');
-                            if (hiddenId) {
-                                formFields[hiddenId.name] = hiddenId.value;
-                            }
-                            dataToSend.push(formFields);
-                        }
-                    });
-        
-                    if (dataToSend.length > 0) {
-                        fetch("{% url 'RimborsiApp:salva_pernottamenti' id=missione.id %}", {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-Requested-With': 'XMLHttpRequest',
-                                'X-CSRFToken': '{{ csrf_token }}'
-                            },
-                            body: JSON.stringify({ data: dataToSend })
-                        })
-                        .then(response => response.json())
-                        .then(data => console.log("Dati pernottamenti salvati:", data))
-                        .catch(error => console.error('Errore:', error));
-                    }
-        
-                } else if (formType === 'pasti') {
-                    const pastiForm = document.querySelector('form[action="{% url 'RimborsiApp:salva_pasti' id=missione.id %}"]');
-                    const formData = new FormData(pastiForm);
-        
-                    fetch("{% url 'RimborsiApp:salva_pasti' id=missione.id %}", {
-                        method: 'POST',
-                        headers: {
-                            'X-Requested-With': 'XMLHttpRequest'
-                        },
-                        body: formData
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            console.log("Dati pasti salvati correttamente!");
-                        } else {
-                            console.error("Errore nel salvataggio pasti:", data.errors);
-                        }
-                    })
-                    .catch(error => console.error("Errore nella richiesta:", error));
-        
-                } else if (formType === 'trasporti') {
-                    const trasportiForm = document.querySelector('form[action="{% url 'RimborsiApp:salva_trasporti' id=missione.id %}"]');
-                    const formData = new FormData(trasportiForm);
-        
-                    fetch("{% url 'RimborsiApp:salva_trasporti' id=missione.id %}", {
-                        method: 'POST',
-                        headers: {
-                            'X-Requested-With': 'XMLHttpRequest'
-                        },
-                        body: formData
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            console.log("Dati trasporti salvati correttamente!");
-                        } else {
-                            console.error("Errore nel salvataggio trasporti:", data.errors);
-                        }
-                    })
-                    .catch(error => console.error("Errore nella richiesta:", error));
-                }
-            }
-        
-            document.addEventListener('DOMContentLoaded', function () {
-                // Monitora i campi per il formset "pernottamenti"
-                document.querySelectorAll('.pernottamenti_formset_row').forEach(function (row) {
-                    monitorFields(row, 'pernottamenti');
-                });
-        
-                // Monitora i campi per il formset "pasti"
-                const pastiForm = document.querySelector('form[action="{% url 'RimborsiApp:salva_pasti' id=missione.id %}"]');
-                if (pastiForm) {
-                    pastiForm.querySelectorAll('.form-group input, .form-group select, .form-group textarea').forEach(function (input) {
-                        input.addEventListener('input', function () {
-                            debounce(() => sendDataToServer('pasti'), debounceDelayFormset2);
-                        });
-                    });
-        
-                    pastiForm.addEventListener('submit', function (event) {
-                        event.preventDefault();
-                        sendDataToServer('pasti');
-                    });
-                }
-        
-                // Monitora i campi per il formset "trasporti"
-                const trasportiForm = document.querySelector('form[action="{% url 'RimborsiApp:salva_trasporti' id=missione.id %}"]');
-                if (trasportiForm) {
-                    trasportiForm.querySelectorAll('.form-group input, .form-group select, .form-group textarea').forEach(function (input) {
-                        input.addEventListener('input', function () {
-                            debounce(() => sendDataToServer('trasporti'), debounceDelayFormset3);
-                        });
-                    });
-        
-                    trasportiForm.addEventListener('submit', function (event) {
-                        event.preventDefault();
-                        sendDataToServer('trasporti');
-                    });
-                }
-        
-                // Observer per entrambi i container
-                const pernottamentiContainer = document.getElementById('pernottamenti-formset-container');
-                const pastiContainer = document.getElementById('pasti-formset-container');
-                const trasportiContainer = document.getElementById('trasporti-formset-container');
-        
-                const observer = new MutationObserver(function (mutations) {
-                    mutations.forEach(function (mutation) {
-                        if (mutation.type === 'childList') {
-                            mutation.addedNodes.forEach(function (newNode) {
-                                if (newNode.classList.contains('pernottamenti_formset_row')) {
-                                    monitorFields(newNode, 'pernottamenti');
-                                }
-                                if (newNode.classList.contains('pasti_formset_row')) {
-                                    monitorFields(newNode, 'pasti');
-                                }
-                                if (newNode.classList.contains('trasporti_formset_row')) {
-                                    monitorFields(newNode, 'trasporti');
-                                }
-                            });
-                        }
-                    });
-                });
-        
-                // Attiva l'observer per i container dei formset
-                if (pernottamentiContainer) {
-                    observer.observe(pernottamentiContainer, { childList: true, subtree: true });
-                }
-                if (pastiContainer) {
-                    observer.observe(pastiContainer, { childList: true, subtree: true });
-                }
-                if (trasportiContainer) {
-                    observer.observe(trasportiContainer, { childList: true, subtree: true });
-                }
-            });
-        </script>
-        {% endcomment %}
 
-        
-        
         <hr>
         <h3>Iscrizione Convegni:</h3>
         <form action="{% url 'RimborsiApp:salva_convegni' id=missione.id %}" method="post" enctype="multipart/form-data">{% csrf_token %}
@@ -517,192 +189,175 @@
         </form>
 
     {% endif %}
-
-    <script>
-    let debounceTimer;
-    const debounceDelayFormset1 = 5000;  // Delay per "pernottamenti"
-    const debounceDelayFormset2 = 5000;  // Delay per "pasti"
-    const debounceDelayFormset3 = 5000;  // Delay per "trasporti"
-    const debounceDelayFormset4 = 5000;  // Delay per "convegni"
-    const debounceDelayFormset5 = 5000;  // Delay per "altrespese"
-
-    // Funzione debounce per evitare troppi invii ravvicinati
-    function debounce(callback, delay) {
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(callback, delay);
-    }
+    
+    
+     
+<script>
 
     // Funzione per monitorare i campi di un formset e inviare dati al server
     function monitorFields(row, formType) {
         row.querySelectorAll('.form-group input, .form-group select, .form-group textarea').forEach(function (field) {
-            field.setAttribute('data-modified', "False");
-
-            field.addEventListener('input', function () {
-                this.setAttribute('data-modified', "True");
-                const delay = formType === 'pernottamenti' ? debounceDelayFormset1 :
-                              formType === 'pasti' ? debounceDelayFormset2 :
-                              formType === 'trasporti' ? debounceDelayFormset3 :
-                              formType === 'convegni' ? debounceDelayFormset4 :
-                              debounceDelayFormset5;  // per altrespese
-                debounce(() => sendDataToServer(formType), delay);
+            // Aggiungi un event listener per l'evento "change"
+            field.addEventListener('change', function () {
+                if (field.type === 'file') {
+                    sendDataToServer2(formType,row);
+                } else {
+                    sendDataToServer(formType);
+                }
             });
         });
     }
 
+
+    // Funzione per inviare tutti i dati del formset al server
     function sendDataToServer(formType) {
-        if (formType === 'pernottamenti') {
-            let dataToSend = [];
-            document.querySelectorAll('.pernottamenti_formset_row').forEach(function (row) {
-                let formFields = {};
-                let formModified = false;
+        let formsetData = [];
 
-                row.querySelectorAll('.form-group input, .form-group select, .form-group textarea').forEach(function (field) {
-                    if (field.getAttribute('data-modified') === "True") {
-                        formFields[field.name] = field.value;
-                        formModified = true;
-                        field.setAttribute('data-modified', "False");
-                    }
-                });
-
-                if (formModified) {
-                    const hiddenId = row.querySelector('input[name$="-id"]');
-                    if (hiddenId) {
-                        formFields[hiddenId.name] = hiddenId.value;
-                    }
-                    dataToSend.push(formFields);
-                }
+        document.querySelectorAll(`.${formType}_formset_row`).forEach(row => {
+            let formFields = {};
+            row.querySelectorAll('.form-group input, .form-group select, .form-group textarea').forEach(function (field) {
+                formFields[field.name] = field.value;
             });
-
-            if (dataToSend.length > 0) {
-                fetch("{% url 'RimborsiApp:salva_pernottamenti' id=missione.id %}", {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'X-CSRFToken': '{{ csrf_token }}'
-                    },
-                    body: JSON.stringify({ data: dataToSend })
-                })
-                .then(response => response.json())
-                .then(data => console.log("Dati pernottamenti salvati:", data))
-                .catch(error => console.error('Errore:', error));
+            
+            const hiddenId = row.querySelector('input[name$="-id"]');
+            if (hiddenId) {
+                formFields[hiddenId.name] = hiddenId.value;
+                
             }
 
-        } else if (formType === 'altrespese') {
-            let dataToSend = [];
-            document.querySelectorAll('.altrespese_formset_row').forEach(function (row) {
-                let formFields = {};
-                let formModified = false;
+            formsetData.push(formFields);
+        });
 
-                row.querySelectorAll('.form-group input, .form-group select, .form-group textarea').forEach(function (field) {
-                    if (field.getAttribute('data-modified') === "True") {
-                        formFields[field.name] = field.value;
-                        formModified = true;
-                        field.setAttribute('data-modified', "False");
-                    }
-                });
+        const urls = {
+            pernottamenti: "{% url 'RimborsiApp:salva_pernottamenti' id=missione.id %}",
+            pasti: "{% url 'RimborsiApp:salva_pasti' id=missione.id %}",
+            trasporti: "{% url 'RimborsiApp:salva_trasporti' id=missione.id %}",
+            convegni: "{% url 'RimborsiApp:salva_convegni' id=missione.id %}",
+            altrespese: "{% url 'RimborsiApp:salva_altrespese' id=missione.id %}"
+        };
 
-                if (formModified) {
-                    const hiddenId = row.querySelector('input[name$="-id"]');
-                    if (hiddenId) {
-                        formFields[hiddenId.name] = hiddenId.value;
-                    }
-                    dataToSend.push(formFields);
+        fetch(urls[formType], {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',       //non serve più: Quando si utilizza FormData, non si deve specificare il Content-Type come application/json perché FormData gestisce automaticamente il tipo di contenuto.
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ data: formsetData })
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log(`Dati ${formType} salvati:`, data);
+
+            data.updated_rows.forEach(updatedRow => {
+                const formsetPrefix = updatedRow.formset_prefix;
+                const pastoId = updatedRow.pasto_id;
+                const inputIdField = document.querySelector(`input[name="${formsetPrefix}id"]`);
+                if (inputIdField) {
+                    inputIdField.value = pastoId;
                 }
             });
-
-            if (dataToSend.length > 0) {
-                fetch("{% url 'RimborsiApp:salva_altrespese' id=missione.id %}", {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Requested-With': 'XMLHttpRequest',
-                        'X-CSRFToken': '{{ csrf_token }}'
-                    },
-                    body: JSON.stringify({ data: dataToSend })
-                })
-                .then(response => response.json())
-                .then(data => console.log("Dati altrespese salvati:", data))
-                .catch(error => console.error('Errore:', error));
-            }
-        
-        } else if (formType === 'pasti') {
-            // Gestione pasti
-        } else if (formType === 'trasporti') {
-            // Gestione trasporti
-        } else if (formType === 'convegni') {
-            // Gestione convegni
-        }
+        })
+        .catch(error => console.error('Errore:', error));
     }
+    //IMG ONLY
+     function sendDataToServer2(formType,formRow) {
+        let formsetDataIMG = new FormData();
+        /*
+        document.querySelectorAll(`.${formType}_formset_row`).forEach(row => {
+            let formFields = {};
+            row.querySelectorAll('.form-group input, .form-group select, .form-group textarea').forEach(function (field) {
+                //formFields[field.name] = field.value;
+                if (field.files && field.files.length > 0) { 
+                    formsetDataIMG.append(field.name, field.files[0]); 
+                } 
+            });
+            
+            const hiddenId = row.querySelector('input[name$="-id"]');
+            if (hiddenId) {
+                formsetDataIMG.append(hiddenId.name, hiddenId.value);
+            }
 
+        });
+        */
+         formRow.querySelectorAll('.form-group input, .form-group select, .form-group textarea').forEach(function (field) {
+             if (field.files && field.files.length > 0) {
+                 formsetDataIMG.append(field.name, field.files[0]);
+             } 
+         }); 
+         const hiddenId = formRow.querySelector('input[name$="-id"]'); 
+         if (hiddenId) {
+             formsetDataIMG.append(hiddenId.name, hiddenId.value);
+         }
+         
+         
+        const urls = {
+            pernottamenti: "{% url 'RimborsiApp:salva_pernottamenti' id=missione.id %}",
+            pasti: "{% url 'RimborsiApp:salva_pasti' id=missione.id %}",
+            trasporti: "{% url 'RimborsiApp:salva_trasporti' id=missione.id %}",
+            convegni: "{% url 'RimborsiApp:salva_convegni' id=missione.id %}",
+            altrespese: "{% url 'RimborsiApp:salva_altrespese' id=missione.id %}"
+        };
+
+        fetch(urls[formType], {
+            method: 'POST',
+            headers: {
+                //'Content-Type': 'application/json',       //non serve più: Quando si utilizza FormData, non si deve specificare il Content-Type come application/json perché FormData gestisce automaticamente il tipo di contenuto.
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            //body: JSON.stringify({ data: formsetData })
+            body: formsetDataIMG
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log(`Dati ${formType} salvati:`, data);
+
+            data.updated_rows.forEach(updatedRow => {
+                const formsetPrefix = updatedRow.formset_prefix;
+                const pastoId = updatedRow.pasto_id;
+                const inputIdField = document.querySelector(`input[name="${formsetPrefix}id"]`);
+                if (inputIdField) {
+                    inputIdField.value = pastoId;
+                }
+            });
+        })
+        .catch(error => console.error('Errore:', error));
+    }
+    
     document.addEventListener('DOMContentLoaded', function () {
-        // Monitora i campi per il formset "pernottamenti"
-        document.querySelectorAll('.pernottamenti_formset_row').forEach(function (row) {
-            monitorFields(row, 'pernottamenti');
+        const formsets = ['pernottamenti', 'pasti', 'trasporti', 'convegni', 'altrespese'];
+
+        formsets.forEach(formset => {
+            document.querySelectorAll(`.${formset}_formset_row`).forEach(row => monitorFields(row, formset));
         });
 
-        // Monitora i campi per il formset "convegni"
-        document.querySelectorAll('.convegni_formset_row').forEach(function (row) {
-            monitorFields(row, 'convegni');
-        });
+        const containers = {
+            pernottamenti: document.getElementById('pernottamenti-formset-container'),
+            pasti: document.getElementById('pasti-formset-container'),
+            trasporti: document.getElementById('trasporti-formset-container'),
+            convegni: document.getElementById('convegni-formset-container'),
+            altrespese: document.getElementById('altrespese-formset-container')
+        };
 
-        // Monitora i campi per il formset "altrespese"
-        document.querySelectorAll('.altrespese_formset_row').forEach(function (row) {
-            monitorFields(row, 'altrespese');
-        });
-
-        // Monitora i campi per il formset "pasti" e "trasporti" come già implementato
-        // [.. Resto della configurazione pasti e trasporti ..]
-
-        // Observer per i nuovi nodi
-        const pernottamentiContainer = document.getElementById('pernottamenti-formset-container');
-        const convegniContainer = document.getElementById('convegni-formset-container');
-        const altrespeseContainer = document.getElementById('altrespese-formset-container');
-        const pastiContainer = document.getElementById('pasti-formset-container');
-        const trasportiContainer = document.getElementById('trasporti-formset-container');
-
-        const observer = new MutationObserver(function (mutations) {
-            mutations.forEach(function (mutation) {
-                if (mutation.type === 'childList') {
-                    mutation.addedNodes.forEach(function (newNode) {
-                        if (newNode.classList.contains('pernottamenti_formset_row')) {
-                            monitorFields(newNode, 'pernottamenti');
-                        }
-                        if (newNode.classList.contains('convegni_formset_row')) {
-                            monitorFields(newNode, 'convegni');
-                        }
-                        if (newNode.classList.contains('altrespese_formset_row')) {
-                            monitorFields(newNode, 'altrespese');
-                        }
-                        if (newNode.classList.contains('pasti_formset_row')) {
-                            monitorFields(newNode, 'pasti');
-                        }
-                        if (newNode.classList.contains('trasporti_formset_row')) {
-                            monitorFields(newNode, 'trasporti');
+        const observer = new MutationObserver(mutations => {
+            mutations.forEach(mutation => {
+                mutation.addedNodes.forEach(newNode => {
+                    formsets.forEach(formset => {
+                        if (newNode.classList && newNode.classList.contains(`${formset}_formset_row`)) {
+                            monitorFields(newNode, formset);
                         }
                     });
-                }
+                });
             });
         });
 
-        // Attiva l'observer per i container dei formset
-        if (pernottamentiContainer) {
-            observer.observe(pernottamentiContainer, { childList: true, subtree: true });
-        }
-        if (convegniContainer) {
-            observer.observe(convegniContainer, { childList: true, subtree: true });
-        }
-        if (altrespeseContainer) {
-            observer.observe(altrespeseContainer, { childList: true, subtree: true });
-        }
-        if (pastiContainer) {
-            observer.observe(pastiContainer, { childList: true, subtree: true });
-        }
-        if (trasportiContainer) {
-            observer.observe(trasportiContainer, { childList: true, subtree: true });
-        }
+        Object.values(containers).forEach(container => {
+            if (container) observer.observe(container, { childList: true, subtree: true });
+        });
     });
 </script>
+
 
     <script src="{% static 'RimborsiApp/formset/jquery_formset.js' %}"></script>
     <script type="text/javascript">

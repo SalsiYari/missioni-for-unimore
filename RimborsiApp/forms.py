@@ -660,7 +660,15 @@ class Firme_Shared_Form(forms.ModelForm):   #form per la condivisione di firme
             self.fields['user_guest'].queryset = User.objects.exclude(id=user_request.id)
 
 
-firma_shared_formset = inlineformset_factory(User, Firme_Shared, Firme_Shared_Form, extra=0, can_delete=True, min_num=1, fields=['firma', 'user_guest'] )
+firma_shared_formset = inlineformset_factory(
+    User,
+    Firme_Shared,
+    Firme_Shared_Form,
+    extra=0,
+    can_delete=True,
+    min_num=1,
+    fields=['firma', 'user_guest']
+)
 
 
 class Firme_Recived_Form(forms.ModelForm):
@@ -693,7 +701,13 @@ class Firme_Recived_Form(forms.ModelForm):
             self.fields['user_owner'].widget.attrs['readonly'] = True
             self.fields['desc_firma'].widget.attrs['readonly'] = True
 
-firma_recived_formset = modelformset_factory(Firme_Shared, form=Firme_Recived_Form, extra=0, can_delete=False, min_num=0 )
+firma_recived_formset = modelformset_factory(
+    Firme_Shared,
+    form=Firme_Recived_Form,
+    extra=0,
+    can_delete=False,
+    min_num=0
+)
 
 class Firme_Shared_Visualization_Form(forms.ModelForm):
     class Meta:
@@ -714,7 +728,13 @@ class Firme_Shared_Visualization_Form(forms.ModelForm):
         self.fields['firma'].widget.attrs['readonly'] = True
         self.fields['user_guest'].widget.attrs['readonly'] = True
 
-firma_recived_visualization_formset = modelformset_factory(Firme_Shared, form=Firme_Shared_Visualization_Form, extra=0, can_delete=True, min_num=0 )
+firma_recived_visualization_formset = modelformset_factory(
+    Firme_Shared,
+    form=Firme_Shared_Visualization_Form,
+    extra=0,
+    can_delete=True,
+    min_num=0
+)
 
 class Firme_ChooseForm(forms.ModelForm):
 

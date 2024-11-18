@@ -10,6 +10,8 @@ from django.db.models import Sum
 from django.http import Http404, HttpResponseBadRequest, HttpResponseNotFound, HttpResponseServerError , JsonResponse
 from django.shortcuts import redirect, render, reverse, get_object_or_404
 from django.core.mail import send_mail
+from django.views.decorators.http import require_POST
+
 from .forms import *
 from .models import *
 from .utils import *
@@ -745,232 +747,484 @@ def missione(request, id):
 # End: Old version
 ########################
 
-@login_required
-def salva_pasti(request, id):
-    if request.method == 'POST':
-        missione = Missione.objects.get(id=id)
-        pasti_formset = pasto_formset(request.POST, request.FILES, instance=missione)
-        if pasti_formset.is_valid():
-            pasti_formset.save()
-            return redirect('RimborsiApp:missione', id)
-        else:
-            # This is shit, mostrare l'errore vero!
-            return HttpResponseServerError('Form non valido')
-    else:
-        return HttpResponseBadRequest()
-
-#funzione pernottamenti funzionante Level(1)
+#ok ma rimuovi l'invio del jsonrsponse dei dati
 '''@login_required
-def salva_pernottamenti(request, id):
-    missione = get_object_or_404(Missione, user=request.user, id=id)
+def salva_pasti(request, id):
+    missione = get_object_or_404(Missione, id=id)
 
     if request.method == 'POST':
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':  # Richiesta AJAX
-            return handle_ajax_request(request, missione)
-        else:  # Submit di un formset completo
-            return handle_full_formset(request, missione)
-    else:
-        return HttpResponseBadRequest()
+        # Controlla se la richiesta è AJAX
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            try:
+                datas = json.loads(request.body).get('data', [])
+                updated_rows = []  # Aggiungiamo una lista per tenere traccia degli ID aggiornati o nuovi
 
+                # Itera ciascun form_data nel formset per elaborare i dati di ogni riga del formset
+                for form_data in datas:
+                    valori = {}
+                    pasto_id = None
 
-def handle_full_formset(request, missione):
-    pernottamenti_formset = spesa_formset(request.POST, request.FILES, prefix='pernottamenti')
+                    for key, value in form_data.items():
+                        new_key = key.split('-')[-1]
+                        if new_key == 'id':
+                            if value != '':
+                                pasto_id = value
+                        else:
+                            valori[new_key] = value
 
-    if pernottamenti_formset.is_valid():
-        for form in pernottamenti_formset.forms:
-            if form.cleaned_data.get('DELETE'):
-                form.instance.delete()
-                SpesaMissione.objects.filter(spesa=form.instance).delete()
-            else:
-                img_scontrino = form.instance.img_scontrino
-                form.instance.img_scontrino = None
-                instance = form.save(commit=False)
-                instance.save()
-                SpesaMissione.objects.update_or_create(
-                    missione=missione,
-                    spesa=instance,
-                    tipo='PERNOTTAMENTO'
-                )
-                if img_scontrino:
-                    instance.img_scontrino = img_scontrino
-                    instance.save()
-        return redirect('RimborsiApp:missione', id=missione.id)
-    else:
+                     # Convertiamo i campi importo in float se presenti
+                    for field in ['importo1', 'importo2', 'importo3']:
+                        if field in valori:
+                            try:
+                                valori[field] = float(valori[field]) if valori[field] != '' else 0.0
+                            except ValueError:
+                                return HttpResponseBadRequest(f"Errore: il campo {field} deve essere un numero valido.")
 
-        # Diagnostica gli errori di validazione del formset
-        errors = pernottamenti_formset.errors
-        print("Formset non valido. Errori:", errors)
-        return HttpResponseServerError(f"Form non valido. Errori: {errors}")
-
-
-def handle_ajax_request(request, missione):
-    try:
-        datas = json.loads(request.body).get('data', [])  # Estrai i dati JSON
-        spesa_id = None
-
-        for form_data in datas:                  #per ogni form diverso
-            valori = {}
-            for key, value in form_data.items():#per ogni coppia di campi nel form
-                #prende l'ultimo elemento della stringa key
-                new_key = key.split('-')[-1]  # Questo prenderà 'importo' da 'pernottamenti-0-importo'
-
-                if new_key == 'id':
-                    if value == '':
-                        spesa_id = None
+                    #ora che aggiorno sempre tutti i campi -> Aggiungiamo l'istanza di missione ai valori
+                    valori['missione'] = missione
+                    # Se il pasto esiste, aggiorna; altrimenti crea un nuovo pasto
+                    if pasto_id:
+                        # Aggiorna il record esistente
+                        try:
+                            pasto = Pasti.objects.get(id=pasto_id)
+                            for field, value in valori.items():
+                                setattr(pasto, field, value)
+                            pasto.save()
+                        except Pasti.DoesNotExist:
+                            return HttpResponseBadRequest(f"Errore: pasto con id {pasto_id} non trovato.")
                     else:
-                        spesa_id = value
-                else:
-                    valori[new_key] = value
+                        # Crea un nuovo record
+                        if 'data' in valori:  # Verifica che i campi necessari siano presenti
+                            pasto = Pasti(**valori)
+                            pasto.save()
+                            pasto_id = pasto.id  # Otteniamo il nuovo ID appena creato
+                            updated_rows.append({'formset_id': form_data['id'], 'pasto_id': pasto_id})
 
-            if spesa_id:
-                spesa = Spesa.objects.get(id=spesa_id)
-                # Aggiorna campi esistenti
-                for field, value in valori.items():
-                    setattr(spesa, field, value)        # Aggiorna i campi della spesa -->setattr(instance, attribute, value)
-                spesa.save()
+                return JsonResponse({"message": "Dati salvati correttamente", "updated_rows": updated_rows}, status=200)
 
+            except (json.JSONDecodeError, KeyError, ValueError) as e:
+                return HttpResponseBadRequest(f"Errore nel parsing dei dati: {e}")
+
+        else:
+            # Metodo normale POST (non AJAX)
+            pasti_formset = pasto_formset(request.POST, request.FILES, instance=missione)
+            if pasti_formset.is_valid():
+                pasti_formset.save()
+                return redirect('RimborsiApp:missione', id)
             else:
-                # Crea una nuova istanza di Spesa se non esiste
-                spesa = Spesa(**valori)
-                if spesa.data:
-                    spesa.save()
-                    SpesaMissione.objects.update_or_create(missione=missione, spesa=spesa, tipo='PERNOTTAMENTO')
+                # Mostra l'errore specifico se il form non è valido
+                error_messages = ", ".join(
+                    [f"{field}: {error}" for field, errors in pasti_formset.errors.items() for error in errors]
+                )
+                return HttpResponseServerError(f'Form non valido: {error_messages}')
 
-        return JsonResponse({"message": "Dati salvati correttamente"}, status=200)
-    except (json.JSONDecodeError, KeyError, ValueError) as e:
-        return HttpResponseBadRequest(f"Errore nel parsing dei dati: {e}")
+    else:
+        return HttpResponseBadRequest()
+'''
+#ok PASTI funziona bene ma non gestisce il caricamento delle immagini--> è salv_apasti2
+'''@login_required
+@require_POST
+def salva_pasti(request, id):
+    missione = get_object_or_404(Missione, id=id)
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        try:
+            datas = json.loads(request.body).get('data', [])
+            updated_rows = []  # Lista per tenere traccia degli ID aggiornati o creati e dei loro prefissi
+
+            for form_data in datas:
+                valori = {}
+                pasto_id = None
+                formset_prefix = None
+
+                for key, value in form_data.items():
+                    # Otteniamo il prefisso formset (es. "pasti_set-0-")
+                    prefix_split = key.split('-')
+                    if len(prefix_split) > 1:
+                        formset_prefix = f"{prefix_split[0]}-{prefix_split[1]}-"
+                    new_key = key[len(formset_prefix):]  # Rimuoviamo il prefisso per ottenere solo il campo
+
+                    if new_key == 'id':
+                        pasto_id = value if value else None
+                    else:
+                        valori[new_key] = value
+
+                # Convertiamo i campi importo in float se presenti
+                for field in ['importo1', 'importo2', 'importo3']:
+                    if field in valori:
+                        try:
+                            valori[field] = float(valori[field]) if valori[field] else 0.0
+                        except ValueError:
+                            return HttpResponseBadRequest(f"Errore: il campo {field} deve essere un numero valido.")
+
+                valori['missione'] = missione
+
+                if pasto_id:  # Aggiorna il record esistente
+                    try:
+                        pasto = Pasti.objects.get(id=pasto_id)
+                        for field, value in valori.items():
+                            setattr(pasto, field, value)
+                        pasto.save()
+                    except Pasti.DoesNotExist:
+                        return HttpResponseBadRequest(f"Errore: pasto con id {pasto_id} non trovato.")
+                else:  # Crea un nuovo record
+                    if 'data' in valori:  # Validazione campi necessari
+                        pasto = Pasti(**valori)
+                        pasto.save()
+                        pasto_id = pasto.id  # Otteniamo il nuovo ID
+
+                updated_rows.append({'formset_prefix': formset_prefix, 'pasto_id': pasto_id})
+
+            return JsonResponse({"message": "Dati salvati correttamente", "updated_rows": updated_rows}, status=200)
+
+        except (json.JSONDecodeError, KeyError, ValueError) as e:
+            return HttpResponseBadRequest(f"Errore nel parsing dei dati: {e}")
+    else:
+        return HttpResponseBadRequest()
+
 '''
 
+'''@login_required
+@require_POST
+def salva_pasti(request, id):
+    missione = get_object_or_404(Missione, id=id)
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        updated_rows = []
+
+        if request.content_type == "application/json":
+            # Gestione per i dati JSON
+            try:
+                datas = json.loads(request.body).get('data', [])
+                for form_data in datas:
+                    valori = {}
+                    pasto_id = None
+                    formset_prefix = None
+
+                    for key, value in form_data.items():
+                        prefix_split = key.split('-')
+                        if len(prefix_split) > 1:
+                            formset_prefix = f"{prefix_split[0]}-{prefix_split[1]}-"
+                        new_key = key[len(formset_prefix):]
+
+                        if new_key == 'id':
+                            pasto_id = value if value else None
+                        else:
+                            valori[new_key] = value
+
+                    # Convertiamo i campi importo in float se presenti
+                    for field in ['importo1', 'importo2', 'importo3']:
+                        if field in valori:
+                            try:
+                                valori[field] = float(valori[field]) if valori[field] else 0.0
+                            except ValueError:
+                                return HttpResponseBadRequest(f"Errore: il campo {field} deve essere un numero valido.")
+
+                    valori['missione'] = missione
+
+                    if pasto_id:
+                        try:
+                            pasto = Pasti.objects.get(id=pasto_id)
+                            for field, value in valori.items():
+                                setattr(pasto, field, value)
+                            pasto.save()
+                        except Pasti.DoesNotExist:
+                            return HttpResponseBadRequest(f"Errore: pasto con id {pasto_id} non trovato.")
+                    else:
+                        if 'data' in valori:
+                            pasto = Pasti(**valori)
+                            pasto.save()
+                            pasto_id = pasto.id
+
+                    updated_rows.append({'formset_prefix': formset_prefix, 'pasto_id': pasto_id})
+
+                return JsonResponse({"message": "Dati salvati correttamente", "updated_rows": updated_rows}, status=200)
+
+            except (json.JSONDecodeError, KeyError, ValueError) as e:
+                return HttpResponseBadRequest(f"Errore nel parsing dei dati: {e}")
+
+        elif request.content_type.startswith("multipart/form-data"):
+            # Gestione per i file immagine
+            try:
+                pasto_id = request.POST.get('id')
+                formset_prefix = request.POST.get('formset_prefix')
+                file_field_names = ['img_scontrino1', 'img_scontrino2', 'img_scontrino3']
+                pasto = Pasti.objects.get(id=pasto_id) if pasto_id else None
+
+                for field_name in file_field_names:
+                    if field_name in request.FILES:
+                        file = request.FILES[field_name]
+                        setattr(pasto, field_name, file)
+
+                if pasto:
+                    pasto.save()
+                    updated_rows.append({'formset_prefix': formset_prefix, 'pasto_id': pasto.id})
+                    return JsonResponse({"message": "File salvato correttamente", "updated_rows": updated_rows},
+                                        status=200)
+                else:
+                    return HttpResponseBadRequest("Errore: pasto non trovato o ID mancante.")
+
+            except Pasti.DoesNotExist:
+                return HttpResponseBadRequest("Errore: pasto non trovato.")
+            except Exception as e:
+                return HttpResponseBadRequest(f"Errore nel caricamento del file: {e}")
+
+    return HttpResponseBadRequest()'''
+
+
+
 @login_required
+@require_POST
+def salva_pasti(request, id):
+    missione = get_object_or_404(Missione, id=id)
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        updated_rows = []
+
+        # Gestione per i dati JSON
+        if request.content_type == "application/json" or request.content_type.startswith("application/json"):
+            try:
+                datas = json.loads(request.body).get('data', [])
+                for form_data in datas:
+                    valori = {}
+                    pasto_id = None
+                    formset_prefix = None
+
+                    for key, value in form_data.items():
+                        prefix_split = key.split('-')
+                        if len(prefix_split) > 1:
+                            formset_prefix = f"{prefix_split[0]}-{prefix_split[1]}-"
+                        new_key = key[len(formset_prefix):]
+
+                        if new_key == 'id':
+                            pasto_id = value if value else None
+                        else:
+                            valori[new_key] = value
+
+                    # Convertiamo i campi importo in float se presenti
+                    for field in ['importo1', 'importo2', 'importo3']:
+                        if field in valori:
+                            try:
+                                valori[field] = float(valori[field]) if valori[field] else 0.0
+                            except ValueError:
+                                return HttpResponseBadRequest(f"Errore: il campo {field} deve essere un numero valido.")
+
+                    valori['missione'] = missione
+
+                    if pasto_id:
+                        try:
+                            pasto = Pasti.objects.get(id=pasto_id)
+                            for field, value in valori.items():
+                                # Ignora i campi immagine durante l'aggiornamento
+                                if field not in ['img_scontrino1', 'img_scontrino2', 'img_scontrino3']:
+                                    setattr(pasto, field, value)
+
+                            pasto.save()
+                        except Pasti.DoesNotExist:
+                            return HttpResponseBadRequest(f"Errore: pasto con id {pasto_id} non trovato.")
+                    else:
+                        if 'data' in valori:
+                            pasto = Pasti(**valori)
+                            pasto.save()
+                            pasto_id = pasto.id
+
+                    updated_rows.append({'formset_prefix': formset_prefix, 'pasto_id': pasto_id})
+
+                return JsonResponse({"message": "Dati salvati correttamente", "updated_rows": updated_rows}, status=200)
+
+            except (json.JSONDecodeError, KeyError, ValueError) as e:
+                return HttpResponseBadRequest(f"Errore nel parsing dei dati: {e}")
+
+        # Gestione per i file immagine
+        elif request.content_type.startswith("multipart/form-data"):
+            try:
+                for key in request.POST:
+                    prefix_split = key.split('-')       #->[pasti_set, 0, data] = [nome_set, id_set, nome_campo]
+                    if len(prefix_split) > 1:
+                        formset_prefix = f"{prefix_split[0]}-{prefix_split[1]}-"
+                files = request.FILES
+                valori = request.POST.dict()
+
+                for key in list(valori.keys()):
+                    new_key = key[len(formset_prefix):]
+                    valori[new_key] = valori.pop(key)
+
+                pasto_id=valori.pop('id',None)
+
+                if (pasto_id and pasto_id != ''):
+                    pasto = Pasti.objects.get(id=pasto_id)
+                else:
+                    pasto = None
+
+                # Convertiamo i campi importo in float se presenti
+                for field in ['importo1', 'importo2', 'importo3']:
+                    if field in valori:
+                        try:
+                            valori[field] = float(valori[field]) if valori[field] else 0.0
+                        except ValueError:
+                            return HttpResponseBadRequest(f"Errore: il campo {field} deve essere un numero valido.")
+
+                valori['missione'] = missione
+
+                file_field_names = ['img_scontrino1', 'img_scontrino2', 'img_scontrino3']
+
+                # Itera su tutte le chiavi in request.FILES
+                for full_field_name in request.FILES.keys():
+                    # Rimuovi il prefisso dalle chiavi per confrontare
+                    for field_name in file_field_names:
+                        if full_field_name.endswith(f"-{field_name}"):
+                            # Campo trovato, assegna il file al modello
+                            file = request.FILES[full_field_name]
+                            setattr(pasto, field_name, file)
+                            print(f"Aggiornato {field_name} con {file.name}")
+                    ''' aggiorno solo le immagini specificate nella richiesta, senza tenere conto delle altre già esistenti. 
+                    altrimenti il codice setattr(pasto, field_name, file) lo sovrascrive comunque e l'immagine precedente sarà persa.
+                    '''
+                if pasto:
+                    pasto.save()
+                    updated_rows.append({'formset_prefix': formset_prefix, 'pasto_id': pasto.id})
+                    return JsonResponse({"message": "File salvato correttamente", "updated_rows": updated_rows}, status=200)
+                else:
+                    return HttpResponseBadRequest("Errore: pasto non trovato o ID mancante.")
+
+            except Pasti.DoesNotExist:
+                return HttpResponseBadRequest("Errore: pasto non trovato.")
+            except Exception as e:
+                return HttpResponseBadRequest(f"Errore nel caricamento del file: {e}")
+
+    return HttpResponseBadRequest()
+
+#sala_trasporti old version
+'''
+@login_required
+def salva_trasporti(request,id):
+    missione = Missione.objects.get(id=id)
+    if request.method == 'POST':
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+           #richiesta ajax
+            try:
+                datas = json.loads(request.body).get('data', [])
+
+                for form_data in datas:
+                    valori = {}
+                    trasporto_id=None
+                    for key, value in form_data.items():
+                        new_key = key.split('-')[-1]
+                        if new_key == 'id':
+                            if value != '':
+                                trasporto_id = value
+                        else:
+                            valori[new_key] = value
+                    if trasporto_id:
+                        trasporto = Trasporto.objects.get(id=trasporto_id)
+                        for field, value in valori.items():
+                            setattr(trasporto, field, value)
+                        trasporto.save()
+                    else:
+                        valori['missione'] = missione
+
+                        # check che tutti i campi necessari siano presenti in `valori` e non siano vuoti (campi non null in Models)
+                        if all(valori.get(field) for field in ['data', 'missione','mezzo', 'costo', 'valuta']):
+                            trasporto = Trasporto(**valori)
+                            trasporto.save()
+                        else:
+                            return JsonResponse({"message": "Errore nei dati inseriti. Form non completo; campi obbligatori mancanti."},status=400)
+
+                return JsonResponse({"message": "Dati salvati correttamente"}, status=200)
+            except (json.JSONDecodeError, KeyError, ValueError) as e:
+                return HttpResponseBadRequest(f"Errore nel parsing dei dati: {e}")
+        else:
+           #normal POST method
+            trasporti_formset = trasporto_formset(request.POST, request.FILES, instance=missione)
+            if trasporti_formset.is_valid():
+                trasporti_formset.save()
+                return redirect('RimborsiApp:missione', id)
+            else:
+                return HttpResponseServerError('Form non valido')'''
+@login_required
+@require_POST
 def salva_trasporti(request, id):
-    if request.method == 'POST':
-        missione = Missione.objects.get(id=id)
-        trasporti_formset = trasporto_formset(request.POST, request.FILES, instance=missione)
-        if trasporti_formset.is_valid():
-            trasporti_formset.save()
-            return redirect('RimborsiApp:missione', id)
-        else:
-            return HttpResponseServerError('Form non valido')
-    else:
-        return HttpResponseBadRequest()
+    missione = get_object_or_404(Missione, id=id)
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        updated_rows = []
 
-#salva_convegni e salva_altrespese originali  Level1(1):
-'''
-@login_required
-def salva_altrespese(request, id):
-    if request.method == 'POST':
-        missione = Missione.objects.get(user=request.user, id=id)
-        altrespese_formset = spesa_formset(request.POST, request.FILES, prefix='altrespese')
-        if altrespese_formset.is_valid():
-            for form in altrespese_formset.forms:
-                if form.cleaned_data.get('DELETE'):
-                    form.instance.delete()
-                    SpesaMissione.objects.filter(spesa=form.instance).delete()
+        # Gestione per i dati JSON
+        if request.content_type == "application/json" or request.content_type.startswith("application/json"):
+            try:
+                datas = json.loads(request.body).get('data', [])
+                for form_data in datas:
+                    valori = {}
+                    trasporto_id = None
+                    formset_prefix = None
+
+                    for key, value in form_data.items():
+                        prefix_split = key.split('-')
+                        if len(prefix_split) > 1:
+                            formset_prefix = f"{prefix_split[0]}-{prefix_split[1]}-"
+                        new_key = key[len(formset_prefix):]
+
+                        if new_key == 'id':
+                            trasporto_id = value if value else None
+                        else:
+                            valori[new_key] = value
+
+                    # Convertiamo i campi numerici in float se presenti
+                    for field in ['costo', 'km']:
+                        if field in valori:
+                            try:
+                                valori[field] = float(valori[field]) if valori[field] else 0.0
+                            except ValueError:
+                                return HttpResponseBadRequest(f"Errore: il campo {field} deve essere un numero valido.")
+
+                    valori['missione'] = missione
+
+                    if trasporto_id:
+                        try:
+                            trasporto = Trasporto.objects.get(id=trasporto_id)
+                            for field, value in valori.items():
+                                setattr(trasporto, field, value)
+                            trasporto.save()
+                        except Trasporto.DoesNotExist:
+                            return HttpResponseBadRequest(f"Errore: trasporto con id {trasporto_id} non trovato.")
+                    else:
+                        trasporto = Trasporto(**valori)
+                        trasporto.save()
+                        trasporto_id = trasporto.id
+
+                    updated_rows.append({'formset_prefix': formset_prefix, 'trasporto_id': trasporto_id})
+
+                return JsonResponse({"message": "Dati salvati correttamente", "updated_rows": updated_rows}, status=200)
+
+            except (json.JSONDecodeError, KeyError, ValueError) as e:
+                return HttpResponseBadRequest(f"Errore nel parsing dei dati: {e}")
+
+        # Gestione per i file immagine
+        elif request.content_type.startswith("multipart/form-data"):
+            try:
+                trasporto_id = request.POST.get('id')
+                formset_prefix = request.POST.get('formset_prefix')
+
+                if trasporto_id:
+                    trasporto = Trasporto.objects.get(id=trasporto_id)
                 else:
-                    img_scontrino = form.instance.img_scontrino
-                    form.instance.img_scontrino = None
-                    instance = form.save(commit=False)
-                    instance.save()
-                    SpesaMissione.objects.update_or_create(missione=missione, spesa=instance, tipo='ALTRO')
-                    if img_scontrino:
-                        instance.img_scontrino = img_scontrino
-                        instance.save()
-            return redirect('RimborsiApp:missione', id)
-        else:
-            return HttpResponseServerError('Form non valido')
-    else:
-        return HttpResponseBadRequest()
+                    trasporto = None
 
+                if 'img_scontrino' in request.FILES:
+                    file = request.FILES['img_scontrino']
+                    setattr(trasporto, 'img_scontrino', file)
 
-@login_required
-def salva_convegni(request, id):
-    if request.method == 'POST':
-        missione = Missione.objects.get(user=request.user, id=id)
-        convegni_formset = spesa_formset(request.POST, request.FILES, prefix='convegni')
-        if convegni_formset.is_valid():
-            for form in convegni_formset.forms:
-                if form.cleaned_data.get('DELETE'):
-                    form.instance.delete()
-                    SpesaMissione.objects.filter(spesa=form.instance).delete()
+                if trasporto:
+                    trasporto.save()
+                    updated_rows.append({'formset_prefix': formset_prefix, 'trasporto_id': trasporto.id})
+                    return JsonResponse({"message": "File salvato correttamente", "updated_rows": updated_rows}, status=200)
                 else:
-                    img_scontrino = form.instance.img_scontrino
-                    form.instance.img_scontrino = None
-                    instance = form.save(commit=False)
-                    instance.save()
-                    SpesaMissione.objects.update_or_create(missione=missione, spesa=instance, tipo='CONVEGNO')
-                    if img_scontrino:
-                        instance.img_scontrino = img_scontrino
-                        instance.save()
-            return redirect('RimborsiApp:missione', id)
-        else:
-            return HttpResponseServerError('Form non valido')
-    else:
-        return HttpResponseBadRequest()
+                    return HttpResponseBadRequest("Errore: trasporto non trovato o ID mancante.")
 
-'''
+            except Trasporto.DoesNotExist:
+                return HttpResponseBadRequest("Errore: trasporto non trovato.")
+            except Exception as e:
+                return HttpResponseBadRequest(f"Errore nel caricamento del file: {e}")
 
-#salva_convegni + salva_altrespese + salva_pernottamentifrom  Level(2)
-'''
-@login_required
-def salva_spese(request, id, tipo_spesa, prefix):
-    """
-    Salva le spese per una missione, con gestione di diversi tipi di spese.
-
-    tipo_spesa: Tipo di spesa ('ALTRO', 'CONVEGNO', 'PERNOTTAMENTO')
-    prefix: Prefix per il formset ('altrespese', 'convegni', 'pernottamenti')
-    """
-    if request.method == 'POST':
-        missione = get_object_or_404(Missione, user=request.user, id=id)
-        spese_formset = spesa_formset(request.POST, request.FILES, prefix=prefix)
-
-        if spese_formset.is_valid():
-            for form in spese_formset.forms:
-                if form.cleaned_data.get('DELETE'):
-                    form.instance.delete()
-                    SpesaMissione.objects.filter(spesa=form.instance).delete()
-                else:
-                    img_scontrino = form.instance.img_scontrino
-                    form.instance.img_scontrino = None
-                    instance = form.save(commit=False)
-                    instance.save()
-                    SpesaMissione.objects.update_or_create(
-                        missione=missione,
-                        spesa=instance,
-                        tipo=tipo_spesa
-                    )
-                    if img_scontrino:
-                        instance.img_scontrino = img_scontrino
-                        instance.save()
-
-            return redirect('RimborsiApp:missione', id=missione.id)
-        else:
-            # Diagnostica gli errori di validazione del formset
-            errors = spese_formset.errors
-            print(f"Formset non valido per tipo {tipo_spesa}. Errori:", errors)
-            return HttpResponseServerError(f"Form non valido. Errori: {errors}")
-    else:
-        return HttpResponseBadRequest("Metodo non consentito")
+    return HttpResponseBadRequest()
 
 
-@login_required
-def salva_altrespese(request, id):
-    # Chiamata specifica per le spese di tipo 'ALTRO'
-    return salva_spese(request, id, 'ALTRO', 'altrespese')
-
-
-@login_required
-def salva_convegni(request, id):
-    # Chiamata specifica per le spese di tipo 'CONVEGNO'
-    return salva_spese(request, id, 'CONVEGNO', 'convegni')
-
-
-@login_required
-def salva_pernottamenti(request, id):
-    # Chiamata specifica per le spese di tipo 'PERNOTTAMENTO'
-    return salva_spese(request, id, 'PERNOTTAMENTO', 'pernottamenti')
-'''
-
-#salva_convegni + salva_altrespese + salva_pernottamenti + salva_trasporti Level(3)
 
 @login_required
 def salva_spese(request, id, tipo_spesa, prefix):
@@ -1136,34 +1390,6 @@ def statistiche(request):
     return render(request, 'Rimborsi/statistiche.html', {
         'missioni_ricerca': missioni_ricerca,
         'missioni_progetto': missioni_progetto})
-
-
-'''
-@login_required
-def firma(request):             # == Salva_firme
-    if request.method == 'GET':
-        #redirect('RimborsiApp:profile')
-        firme_formset = firma_formset(instance=request.user, queryset=Firme.objects.filter(user_owner=request.user))
-        return render(request, 'Rimborsi/trashComparable.html', {'firme_formset': firme_formset, })
-
-    elif request.method == 'POST':
-        user=request.user
-        firme_formset = firma_formset(request.POST, request.FILES, instance = User.objects.get(id=user.id))
-        #firme_formset = firma_formset(request.POST, request.FILES)
-
-        for form in firme_formset.forms:
-            form.user_owner = user      #superfluo
-
-        if firme_formset.is_valid():
-            firme_formset.save()
-
-            return redirect('RimborsiApp:profile')
-        else:
-            #return HttpResponseServerError('Errore nel caricamento della firma')
-            return HttpResponse(f"Errore nel formset: {firme_formset.errors}")
-    else:
-        return HttpResponseBadRequest()
-'''
 
 
 @login_required
