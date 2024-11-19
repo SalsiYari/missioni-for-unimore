@@ -191,7 +191,7 @@
     {% endif %}
     
     
-     
+    
 <script>
 
     // Funzione per monitorare i campi di un formset e inviare dati al server
@@ -246,15 +246,20 @@
             body: JSON.stringify({ data: formsetData })
         })
         .then(response => response.json())
+            
         .then(data => {
             console.log(`Dati ${formType} salvati:`, data);
 
+            // Gestione dinamica di tutti i formset
             data.updated_rows.forEach(updatedRow => {
                 const formsetPrefix = updatedRow.formset_prefix;
-                const pastoId = updatedRow.pasto_id;
+                //facessi sempre updateRow.id non avrei bisogno di fare il controllo
+                const newId = updatedRow.pasto_id || updatedRow.trasporto_id || updatedRow.altro_id || updatedRow.pernottamento_id || updatedRow.convegno_id;
+
+                // Aggiorna il valore dell'id corrispondente
                 const inputIdField = document.querySelector(`input[name="${formsetPrefix}id"]`);
                 if (inputIdField) {
-                    inputIdField.value = pastoId;
+                    inputIdField.value = newId;
                 }
             });
         })
@@ -268,11 +273,11 @@
             let formFields = {};
             row.querySelectorAll('.form-group input, .form-group select, .form-group textarea').forEach(function (field) {
                 //formFields[field.name] = field.value;
-                if (field.files && field.files.length > 0) { 
-                    formsetDataIMG.append(field.name, field.files[0]); 
-                } 
+                if (field.files && field.files.length > 0) {
+                    formsetDataIMG.append(field.name, field.files[0]);
+                }
             });
-            
+
             const hiddenId = row.querySelector('input[name$="-id"]');
             if (hiddenId) {
                 formsetDataIMG.append(hiddenId.name, hiddenId.value);
@@ -283,14 +288,14 @@
          formRow.querySelectorAll('.form-group input, .form-group select, .form-group textarea').forEach(function (field) {
              if (field.files && field.files.length > 0) {
                  formsetDataIMG.append(field.name, field.files[0]);
-             } 
-         }); 
-         const hiddenId = formRow.querySelector('input[name$="-id"]'); 
+             }
+         });
+         const hiddenId = formRow.querySelector('input[name$="-id"]');
          if (hiddenId) {
              formsetDataIMG.append(hiddenId.name, hiddenId.value);
          }
-         
-         
+
+
         const urls = {
             pernottamenti: "{% url 'RimborsiApp:salva_pernottamenti' id=missione.id %}",
             pasti: "{% url 'RimborsiApp:salva_pasti' id=missione.id %}",
@@ -313,12 +318,15 @@
         .then(data => {
             console.log(`Dati ${formType} salvati:`, data);
 
+            // Gestione dinamica di tutti i formset
             data.updated_rows.forEach(updatedRow => {
                 const formsetPrefix = updatedRow.formset_prefix;
-                const pastoId = updatedRow.pasto_id;
+                const newId = updatedRow.pasto_id || updatedRow.trasporto_id || updatedRow.altro_id || updatedRow.pernottamento_id || updatedRow.convegno_id;
+
+                // Aggiorna il valore dell'id corrispondente
                 const inputIdField = document.querySelector(`input[name="${formsetPrefix}id"]`);
                 if (inputIdField) {
-                    inputIdField.value = pastoId;
+                    inputIdField.value = newId;
                 }
             });
         })
@@ -357,6 +365,7 @@
         });
     });
 </script>
+
 
 
     <script src="{% static 'RimborsiApp/formset/jquery_formset.js' %}"></script>

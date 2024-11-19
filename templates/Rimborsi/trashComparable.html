@@ -1327,3 +1327,175 @@ modifica va |inserimento non va | immagini vanno in modifica ma non ininseriment
         });
     });
 </script>
+
+
+{% comment %}
+funziona da dio con i pasti, la risposta ajax deve essere resa compatibile per tutti i form
+{% endcomment %}
+
+<script>
+
+    // Funzione per monitorare i campi di un formset e inviare dati al server
+    function monitorFields(row, formType) {
+        row.querySelectorAll('.form-group input, .form-group select, .form-group textarea').forEach(function (field) {
+            // Aggiungi un event listener per l'evento "change"
+            field.addEventListener('change', function () {
+                if (field.type === 'file') {
+                    sendDataToServer2(formType,row);
+                } else {
+                    sendDataToServer(formType);
+                }
+            });
+        });
+    }
+
+
+    // Funzione per inviare tutti i dati del formset al server
+    function sendDataToServer(formType) {
+        let formsetData = [];
+
+        document.querySelectorAll(`.${formType}_formset_row`).forEach(row => {
+            let formFields = {};
+            row.querySelectorAll('.form-group input, .form-group select, .form-group textarea').forEach(function (field) {
+                formFields[field.name] = field.value;
+            });
+            
+            const hiddenId = row.querySelector('input[name$="-id"]');
+            if (hiddenId) {
+                formFields[hiddenId.name] = hiddenId.value;
+                
+            }
+
+            formsetData.push(formFields);
+        });
+
+        const urls = {
+            pernottamenti: "{% url 'RimborsiApp:salva_pernottamenti' id=missione.id %}",
+            pasti: "{% url 'RimborsiApp:salva_pasti' id=missione.id %}",
+            trasporti: "{% url 'RimborsiApp:salva_trasporti' id=missione.id %}",
+            convegni: "{% url 'RimborsiApp:salva_convegni' id=missione.id %}",
+            altrespese: "{% url 'RimborsiApp:salva_altrespese' id=missione.id %}"
+        };
+
+        fetch(urls[formType], {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',       //non serve più: Quando si utilizza FormData, non si deve specificare il Content-Type come application/json perché FormData gestisce automaticamente il tipo di contenuto.
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({ data: formsetData })
+        })
+        .then(response => response.json())
+            
+        .then(data => {
+            console.log(`Dati ${formType} salvati:`, data);
+
+            data.updated_rows.forEach(updatedRow => {
+                const formsetPrefix = updatedRow.formset_prefix;
+                const pastoId = updatedRow.pasto_id;
+                const inputIdField = document.querySelector(`input[name="${formsetPrefix}id"]`);
+                if (inputIdField) {
+                    inputIdField.value = pastoId;
+                }
+            });
+        })
+        .catch(error => console.error('Errore:', error));
+    }
+    //IMG ONLY
+     function sendDataToServer2(formType,formRow) {
+        let formsetDataIMG = new FormData();
+        /*
+        document.querySelectorAll(`.${formType}_formset_row`).forEach(row => {
+            let formFields = {};
+            row.querySelectorAll('.form-group input, .form-group select, .form-group textarea').forEach(function (field) {
+                //formFields[field.name] = field.value;
+                if (field.files && field.files.length > 0) {
+                    formsetDataIMG.append(field.name, field.files[0]);
+                }
+            });
+
+            const hiddenId = row.querySelector('input[name$="-id"]');
+            if (hiddenId) {
+                formsetDataIMG.append(hiddenId.name, hiddenId.value);
+            }
+
+        });
+        */
+         formRow.querySelectorAll('.form-group input, .form-group select, .form-group textarea').forEach(function (field) {
+             if (field.files && field.files.length > 0) {
+                 formsetDataIMG.append(field.name, field.files[0]);
+             }
+         });
+         const hiddenId = formRow.querySelector('input[name$="-id"]');
+         if (hiddenId) {
+             formsetDataIMG.append(hiddenId.name, hiddenId.value);
+         }
+
+
+        const urls = {
+            pernottamenti: "{% url 'RimborsiApp:salva_pernottamenti' id=missione.id %}",
+            pasti: "{% url 'RimborsiApp:salva_pasti' id=missione.id %}",
+            trasporti: "{% url 'RimborsiApp:salva_trasporti' id=missione.id %}",
+            convegni: "{% url 'RimborsiApp:salva_convegni' id=missione.id %}",
+            altrespese: "{% url 'RimborsiApp:salva_altrespese' id=missione.id %}"
+        };
+
+        fetch(urls[formType], {
+            method: 'POST',
+            headers: {
+                //'Content-Type': 'application/json',       //non serve più: Quando si utilizza FormData, non si deve specificare il Content-Type come application/json perché FormData gestisce automaticamente il tipo di contenuto.
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            //body: JSON.stringify({ data: formsetData })
+            body: formsetDataIMG
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log(`Dati ${formType} salvati:`, data);
+
+            data.updated_rows.forEach(updatedRow => {
+                const formsetPrefix = updatedRow.formset_prefix;
+                const pastoId = updatedRow.pasto_id;
+                const inputIdField = document.querySelector(`input[name="${formsetPrefix}id"]`);
+                if (inputIdField) {
+                    inputIdField.value = pastoId;
+                }
+            });
+        })
+        .catch(error => console.error('Errore:', error));
+    }
+    
+    document.addEventListener('DOMContentLoaded', function () {
+        const formsets = ['pernottamenti', 'pasti', 'trasporti', 'convegni', 'altrespese'];
+
+        formsets.forEach(formset => {
+            document.querySelectorAll(`.${formset}_formset_row`).forEach(row => monitorFields(row, formset));
+        });
+
+        const containers = {
+            pernottamenti: document.getElementById('pernottamenti-formset-container'),
+            pasti: document.getElementById('pasti-formset-container'),
+            trasporti: document.getElementById('trasporti-formset-container'),
+            convegni: document.getElementById('convegni-formset-container'),
+            altrespese: document.getElementById('altrespese-formset-container')
+        };
+
+        const observer = new MutationObserver(mutations => {
+            mutations.forEach(mutation => {
+                mutation.addedNodes.forEach(newNode => {
+                    formsets.forEach(formset => {
+                        if (newNode.classList && newNode.classList.contains(`${formset}_formset_row`)) {
+                            monitorFields(newNode, formset);
+                        }
+                    });
+                });
+            });
+        });
+
+        Object.values(containers).forEach(container => {
+            if (container) observer.observe(container, { childList: true, subtree: true });
+        });
+    });
+</script>

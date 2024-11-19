@@ -1138,7 +1138,6 @@ def salva_trasporti(request,id):
                 return redirect('RimborsiApp:missione', id)
             else:
                 return HttpResponseServerError('Form non valido')'''
-@login_required
 @require_POST
 def salva_trasporti(request, id):
     missione = get_object_or_404(Missione, id=id)
@@ -1188,7 +1187,7 @@ def salva_trasporti(request, id):
                         trasporto.save()
                         trasporto_id = trasporto.id
 
-                    updated_rows.append({'formset_prefix': formset_prefix, 'trasporto_id': trasporto_id})
+                updated_rows.append({'formset_prefix': formset_prefix, 'trasporto_id': trasporto_id})
 
                 return JsonResponse({"message": "Dati salvati correttamente", "updated_rows": updated_rows}, status=200)
 
@@ -1198,24 +1197,37 @@ def salva_trasporti(request, id):
         # Gestione per i file immagine
         elif request.content_type.startswith("multipart/form-data"):
             try:
-                trasporto_id = request.POST.get('id')
-                formset_prefix = request.POST.get('formset_prefix')
+                trasporto_id = None
+                formset_prefix = None
+
+                # Determina il prefisso e trova l'ID del trasporto
+                for key in request.POST.keys():
+                    prefix_split = key.split('-')
+                    if len(prefix_split) > 1:
+                        formset_prefix = f"{prefix_split[0]}-{prefix_split[1]}-"
+                        trasporto_id = request.POST.get(key)                        # Usa la chiave completa per ottenere l'ID
+                        break
 
                 if trasporto_id:
+                    # Se esiste un ID, cerca l'istanza di Trasporto
                     trasporto = Trasporto.objects.get(id=trasporto_id)
                 else:
-                    trasporto = None
+                    # Altrimenti crea un nuovo Trasporto
+                    valori = {key[len(formset_prefix):]: value for key, value in request.POST.items() if
+                              key.startswith(formset_prefix)}
+                    trasporto = Trasporto(**valori)
 
-                if 'img_scontrino' in request.FILES:
-                    file = request.FILES['img_scontrino']
-                    setattr(trasporto, 'img_scontrino', file)
+                # Gestione dell'immagine
+                for file_key in request.FILES.keys():
+                    if file_key.startswith(formset_prefix) and 'img_scontrino' in file_key:
+                        trasporto.img_scontrino = request.FILES[file_key]
+                        break
 
-                if trasporto:
-                    trasporto.save()
-                    updated_rows.append({'formset_prefix': formset_prefix, 'trasporto_id': trasporto.id})
-                    return JsonResponse({"message": "File salvato correttamente", "updated_rows": updated_rows}, status=200)
-                else:
-                    return HttpResponseBadRequest("Errore: trasporto non trovato o ID mancante.")
+                trasporto.save()
+                #aggiornamento id
+                updated_rows.append({'formset_prefix': formset_prefix, 'trasporto_id': trasporto.id})
+
+                return JsonResponse({"message": "File salvato correttamente", "updated_rows": updated_rows}, status=200)
 
             except Trasporto.DoesNotExist:
                 return HttpResponseBadRequest("Errore: trasporto non trovato.")
@@ -1223,6 +1235,7 @@ def salva_trasporti(request, id):
                 return HttpResponseBadRequest(f"Errore nel caricamento del file: {e}")
 
     return HttpResponseBadRequest()
+
 
 
 
@@ -1244,7 +1257,7 @@ def salva_spese(request, id, tipo_spesa, prefix):
     else:
         return HttpResponseBadRequest("Metodo non consentito")
 
-
+#funzione dispessa che gestisce sia il salvataggio che la cancellazione di una spesa tramite gestione standard dei form
 def handle_full_formset(request, missione, tipo_spesa, prefix):
     spese_formset = spesa_formset(request.POST, request.FILES, prefix=prefix)
 
@@ -1271,7 +1284,7 @@ def handle_full_formset(request, missione, tipo_spesa, prefix):
         errors = spese_formset.errors
         return HttpResponseServerError(f"Form non valido. Errori: {errors}")
 
-
+'''
 def handle_ajax_request(request, missione, tipo_spesa):
     try:
         datas = json.loads(request.body).get('data', [])
@@ -1299,7 +1312,134 @@ def handle_ajax_request(request, missione, tipo_spesa):
         return JsonResponse({"message": "Dati salvati correttamente"}, status=200)
     except (json.JSONDecodeError, KeyError, ValueError) as e:
         return HttpResponseBadRequest(f"Errore nel parsing dei dati: {e}")
+'''
 
+
+def handle_ajax_request(request, missione, tipo_spesa):
+    updated_rows = []
+
+    if request.content_type == "application/json" or request.content_type.startswith("application/json"):
+        try:
+            # Parsing dei dati JSON
+            datas = json.loads(request.body).get('data', [])
+            for form_data in datas:
+                valori = {}
+                spesa_id = None
+                formset_prefix = None
+
+                # Estrai i valori e identifica il prefisso del formset
+                for key, value in form_data.items():
+                    new_key = key.split('-')[-1]
+                    if new_key == 'id':
+                        spesa_id = value if value else None
+                    else:
+                        valori[new_key] = value
+
+                    # Determina il prefisso del formset (utile per associare file)
+                    if not formset_prefix:
+                        prefix_split = key.split('-')
+                        if len(prefix_split) > 1:
+                            formset_prefix = f"{prefix_split[0]}-{prefix_split[1]}-"
+
+                # Gestisci delete se presente altrimenti la rimuovi
+                valori.pop('DELETE', None)
+                #creazione o aggiornamento Spesa
+                if spesa_id:
+                    # Aggiorna l'oggetto esistente
+                    spesa = Spesa.objects.get(id=spesa_id)
+                    for field, value in valori.items():
+                        # Evita di sovrascrivere img_scontrino altrimenti l'immagine precedente sarà persa
+                        if field != 'img_scontrino':
+                              setattr(spesa, field, value)
+
+                else:
+                    # Creazione di un nuovo oggetto Spesa (data, importo, valuta sono OBBLIGATORI)
+                    required_fields = ['data', 'importo', 'valuta']
+                    if [field for field in required_fields if field not in valori or not valori[field]]:            #if missing_field
+                        return HttpResponseBadRequest(f"Errore: i seguenti campi sono obbligatori e mancanti o vuoti: {', '.join(required_fields)}")
+
+                    if 'importo' in valori:         #se importo è presente, converti in float
+                        try:
+                            valori['importo'] = float(valori['importo']) if valori['importo'] else 0.0
+                        except ValueError:
+                            return HttpResponseBadRequest("Errore: il campo 'importo' deve essere un numero valido.")
+
+                    try:
+                        spesa = Spesa(**valori)
+                        spesa.save()
+                        spesa_id = spesa.id
+                    except Exception as e:
+                        return HttpResponseBadRequest(f"Errore nel salvataggio della spesa: {str(e)}")
+
+                # Salvataggio dell'oggetto
+                spesa.save()
+
+                # Associazione alla missione
+                SpesaMissione.objects.update_or_create(missione=missione, spesa=spesa, tipo=tipo_spesa)
+
+
+            if tipo_spesa == 'ALTRO':
+                updated_rows.append({'formset_prefix': formset_prefix, 'altro_id': spesa_id})
+            elif tipo_spesa == 'CONVEGNO':
+                updated_rows.append({'formset_prefix': formset_prefix, 'convegno_id': spesa_id})
+            else:
+                updated_rows.append({'formset_prefix': formset_prefix, 'pernottamento_id': spesa_id})
+
+            return JsonResponse({"message": "Dati salvati correttamente", "updated_rows": updated_rows}, status=200)
+
+        except Spesa.DoesNotExist:
+            return HttpResponseBadRequest("Errore: spesa non trovata.")
+        except (json.JSONDecodeError, KeyError, ValueError) as e:
+            return HttpResponseBadRequest(f"Errore nel parsing dei dati: {e}")
+        except Exception as e:
+            return HttpResponseBadRequest(f"Errore sconosciuto: {e}")
+   #image section   .-  .-  .-  .-  .-  .   .-. -
+    elif request.content_type.startswith("multipart/form-data"):
+        try:
+            spesa_id = None
+            formset_prefix = None
+
+            # Determina il prefisso e trova l'ID della spesa
+            for key in request.POST.keys():
+                prefix_split = key.split('-')
+                if len(prefix_split) > 1:
+                    formset_prefix = f"{prefix_split[0]}-{prefix_split[1]}-"
+                    spesa_id = request.POST.get(key)  # Usa la chiave completa per ottenere l'ID
+                    break
+
+            if spesa_id:
+                # Se esiste un ID, cerca l'istanza di Spesa
+                spesa = Spesa.objects.get(id=spesa_id)
+            else:
+                # Altrimenti crea un nuovo Spesa
+                valori = {key[len(formset_prefix):]: value for key, value in request.POST.items() if
+                          key.startswith(formset_prefix)}
+                spesa = Spesa(**valori)
+
+            # Gestione dell'immagine
+            for file_key in request.FILES.keys():
+                if file_key.startswith(formset_prefix) and 'img_scontrino' in file_key:
+                    spesa.img_scontrino = request.FILES[file_key]
+                    break
+
+            spesa.save()
+            # aggiornamento id
+            if tipo_spesa == 'ALTRO':
+                updated_rows.append({'formset_prefix': formset_prefix, 'altro_id': spesa_id})
+            elif tipo_spesa == 'CONVEGNO':
+                updated_rows.append({'formset_prefix': formset_prefix, 'convegno_id': spesa_id})
+            else:
+                updated_rows.append({'formset_prefix': formset_prefix, 'pernottamento_id': spesa_id})
+
+            return JsonResponse({"message": "Dati salvati correttamente", "updated_rows": updated_rows}, status=200)
+
+
+        except Trasporto.DoesNotExist:
+            return HttpResponseBadRequest("Errore: spesa non trovato.")
+        except Exception as e:
+            return HttpResponseBadRequest(f"Errore nel caricamento del file: {e}")
+
+    return HttpResponseBadRequest()
 
 @login_required
 def salva_altrespese(request, id):
