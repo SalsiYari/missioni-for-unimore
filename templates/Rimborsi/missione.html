@@ -11,7 +11,127 @@
 {% block content %}
     {#    {% spaceless %}#}
     {% if user.is_authenticated %}
+        {% comment %}
+        <form id="missione-form">
+            {% csrf_token %}
+        </form>
+        {% endcomment %}
+        
         {% crispy missione_form %}
+
+        <script>
+            function validateMissionDates(formData) {
+                const inizio = new Date(formData['inizio']);
+                const fine = new Date(formData['fine']);
+                const inizioOra = formData['inizio_ora'];
+                const fineOra = formData['fine_ora'];
+            
+                if (fine < inizio) {
+                    alert("La data di inizio deve essere antecedente a quella di fine.");
+                    field.focus();
+                    return false;
+                }
+            
+                if (inizio.getTime() === fine.getTime() && fineOra < inizioOra) {
+                    alert("L'ora di inizio deve essere antecedente a quella di fine.");
+                    return false;
+                }
+            
+                return true;
+            }
+            
+                    
+                    
+                        // Funzione per inviare dati AJAX specifici per il form missione
+            function sendMissionDataToServer(formData) {
+                const url = "{% url 'RimborsiApp:missione' id=missione.id %}";
+            
+                fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRFToken': '{{ csrf_token }}',
+                    },
+                    body: JSON.stringify(formData),
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log('Dati missione salvati:', data);
+                        // Puoi aggiungere logica per aggiornare dinamicamente l'interfaccia
+                    })
+                    .catch(error => console.error('Errore durante il salvataggio della missione:', error));
+            }
+            
+            // Funzione per validare i campi obbligatori del form
+            function validateMissionForm(formData) {
+                const requiredFields = [
+                    'citta_destinazione',
+                    'stato_destinazione',
+                    'inizio',
+                    'inizio_ora',
+                    'fine',
+                    'fine_ora',
+                    'fondo',
+                    'motivazione',
+                    'struttura_fondi'
+                ];
+            
+                let missingFields = [];
+            
+                requiredFields.forEach(field => {
+                    if (!formData[field] || formData[field].trim() === '') {
+                        missingFields.push(field);
+                    }
+                });
+            
+                if (missingFields.length > 0) {
+                    alert(`I campi contrassegnati da "*" sono obbligatori e devono essere compilati! \nCampo mancante: ${missingFields.join(', ')}`);
+                    return false;
+                }
+                // validazione delle date e ore
+                if (!validateMissionDates(formData)) {
+                    return false;
+                }
+            
+                return true;
+            }
+            //---//
+            // Funzione per monitorare i campi del form missione
+            function monitorMissionForm() {
+                const missionForm = document.querySelector('#missione-form'); // ID unico aggiunto al form
+                if (!missionForm) return;
+            
+                missionForm.querySelectorAll('input, select, textarea').forEach(field => {
+                    field.addEventListener('change', function () {
+                        const formData = {};
+                        missionForm.querySelectorAll('input, select, textarea').forEach(input => {
+                            if(input.type === 'checkbox') {
+                                if(!formData[input.name]) {
+                                    formData[input.name] = [];
+                                }
+                                if(input.checked){
+                                    formData[input.name].push(input.value);
+                                }
+                            } else {
+                                formData[input.name] = input.value;
+                            }
+                        });
+            
+                        // Validazione dei campi prima di inviare
+                        if (validateMissionForm(formData)) {
+                            sendMissionDataToServer(formData);
+                        }
+                    });
+                });
+            }
+            
+            // Esegui il monitoraggio dopo il caricamento della pagina
+            document.addEventListener('DOMContentLoaded', function () {
+                monitorMissionForm();
+            });
+
+        </script>
 
         {% load form_tags %}
         <h3>Pasti:</h3>
@@ -75,9 +195,7 @@
                     </div>
                 {% endfor %}
             </div>
-            <div class="text-left-custom" style="text-align: right">
-                <input class="btn btn-primary" type="submit" value="Salva">
-            </div>
+            
         </form>
 
         <hr>
@@ -114,9 +232,7 @@
                     </div>
                 {% endfor %}
             </div>
-            <div class="text-left-custom" style="text-align: right">
-                <input class="btn btn-primary" type="submit" value="Salva">
-            </div>
+            
         </form>
 
 
@@ -149,9 +265,7 @@
                     </div>
                 {% endfor %}
             </div>
-            <div class="text-left-custom" style="text-align: right">
-                <input class="btn btn-primary" type="submit" value="Salva">
-            </div>
+            
         </form>
 
         <hr>
@@ -183,22 +297,50 @@
                     </div>
                 {% endfor %}
             </div>
-            <div class="text-left-custom" style="text-align: right">
-                <input class="btn btn-primary" type="submit" value="Salva">
-            </div>
+            
         </form>
 
     {% endif %}
     
-    
+   
+ {% comment %}
+ {% endcomment %}
     
 <script>
+    const missioneId = '{{ missione.id }}';
+    
+    // Funzione per evitare salvataggi di record vuoti nel caso in cui la data venga inserita parzialmente
+    function isValidDate(dateString) {
+        // Controlla che il formato sia valido (AAAA-MM-GG)
+        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+        if (!dateRegex.test(dateString)) {
+            return false;
+        }
+    
+        // Prova a creare un oggetto Date
+        const date = new Date(dateString);
+        const [year, month, day] = dateString.split('-').map(Number);
+    
+        // Controlla che i valori corrispondano
+        return (
+            date.getFullYear() === year &&
+            date.getMonth() === month - 1 &&
+            date.getDate() === day
+        );
+    }
+
 
     // Funzione per monitorare i campi di un formset e inviare dati al server
     function monitorFields(row, formType) {
         row.querySelectorAll('.form-group input, .form-group select, .form-group textarea').forEach(function (field) {
             // Aggiungi un event listener per l'evento "change"
             field.addEventListener('change', function () {
+                if(field.type === 'date' || field.name.includes('data')) {
+                    if (!isValidDate(field.value)) {
+                        return;
+                    }
+                }
+                
                 if (field.type === 'file') {
                     sendDataToServer2(formType,row);
                 } else {
@@ -206,6 +348,25 @@
                 }
             });
         });
+        // listener per l'evento "click" ai bottoni con classe delete-row btn btn-danger 
+        // Aggiorna il listener per l'evento "click" del pulsante "Elimina"
+    row.querySelectorAll('.delete-row.btn.btn-danger').forEach(function (button) {
+        button.addEventListener('click', function (event) {
+            event.preventDefault(); // Evita l'azione predefinita altrimenti il dom non fornisce i dati prima della rimozione del form
+
+            // Raccogli i dati del modulo prima di rimuoverlo
+            const formFields = {};
+            row.querySelectorAll('.form-group input, .form-group select, .form-group textarea').forEach(function (field) {
+                formFields[field.name] = field.value;
+            });
+
+            // invio i dati raccolti al server
+            sendDataToServer(formType, [formFields]);
+
+            // rimozione manuale del il modulo dal DOM dopo l'invio
+            row.remove();
+        });
+    });
     }
 
 
@@ -250,18 +411,48 @@
         .then(data => {
             console.log(`Dati ${formType} salvati:`, data);
 
-            // Gestione dinamica di tutti i formset
-            data.updated_rows.forEach(updatedRow => {
-                const formsetPrefix = updatedRow.formset_prefix;
-                //facessi sempre updateRow.id non avrei bisogno di fare il controllo
-                const newId = updatedRow.pasto_id || updatedRow.trasporto_id || updatedRow.altro_id || updatedRow.pernottamento_id || updatedRow.convegno_id;
+            // Caso DELETE: aggiorna l'intero formset con i dati di updated_data
+            if (data.deleted_rows) {
+                /*
+                data.deleted_rows.forEach(deletedRow => {
+                    const rowId = deletedRow.id; // ID del record eliminato
+                    const formsetPrefix = deletedRow.formset_prefix;
+                    
+                    // Trova e rimuovi il record corrispondente
+                    const rowElement = document.querySelector(`input[name="${formsetPrefix}id"][value="${rowId}"]`);
+                    if (rowElement) {
+                        const rowToDelete = rowElement.closest(`.${formType}_formset_row`);
+                        if (rowToDelete) {
+                            rowToDelete.remove(); // Rimuove il nodo dal DOM
+                        }
+                    }
+                    */
+                const urlReload = `/missione/${missioneId}`;
+                //const urlReload = `/missione/5`;
+                fetch(urlReload, { method: 'GET' })
+                .then(() => {
+                    window.location.reload(); // Ricarica la pagina interamente
+                })
+                .catch(error => console.error('Errore durante il caricamento:', error));
 
-                // Aggiorna il valore dell'id corrispondente
-                const inputIdField = document.querySelector(`input[name="${formsetPrefix}id"]`);
-                if (inputIdField) {
-                    inputIdField.value = newId;
-                }
-            });
+            }
+
+            
+            if(data.updated_rows){
+                // Gestione dinamica di tutti i formset
+                data.updated_rows.forEach(updatedRow => {
+                    const formsetPrefix = updatedRow.formset_prefix;
+                    //facessi sempre updateRow.id non avrei bisogno di fare il controllo
+                    const newId = updatedRow.pasto_id || updatedRow.trasporto_id || updatedRow.altro_id || updatedRow.pernottamento_id || updatedRow.convegno_id;
+    
+                    // Aggiorna il valore dell'id corrispondente
+                    const inputIdField = document.querySelector(`input[name="${formsetPrefix}id"]`);
+                    if (inputIdField) {
+                        inputIdField.value = newId;
+                    }
+                });
+            }
+            
         })
         .catch(error => console.error('Errore:', error));
     }

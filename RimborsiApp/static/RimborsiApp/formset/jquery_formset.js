@@ -153,7 +153,6 @@
         if ($$.length) {
             var hideAddButton = !showAddButton(),
                 addButton, template;
-
             if (options.formTemplate) {
                 // If a form template was specified, we'll clone it t   o generate new form instances:
                 template = (options.formTemplate instanceof $) ? options.formTemplate : $(options.formTemplate);
@@ -246,7 +245,7 @@
         keepFieldValues: '',             // jQuery selector for fields whose values should be kept when the form is cloned
         added: null,                     // Function called each time a new form is added
         removed: null,                   // Function called each time a form is deleted
-        ifdelete: true
+        ifdelete: true,
     };
 
     function updateFileInputHandlers() {

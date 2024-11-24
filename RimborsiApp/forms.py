@@ -249,6 +249,8 @@ class ProfileForm(forms.ModelForm):
             self.instance.user.save()
         return self.instance
 
+#missioneform versione quasi originale
+'''
 
 class MissioneForm(forms.ModelForm):
     mezzi_previsti = forms.MultipleChoiceField(choices=MEZZO_CHOICES, required=False)
@@ -306,10 +308,11 @@ class MissioneForm(forms.ModelForm):
         # self.helper.form_action = 'missione'
         try:
             _ = kwargs['instance']
-            self.helper.add_input(Submit('submit', 'Aggiorna'))
+           # self.helper.add_input(Submit('submit', 'Aggiorna'))
+            if 2>1:                                                                 # orribile, aggiunto per evitare la visualizzazione del pulsante              #added
+                self.helper.add_input(Submit('submit', 'Aggiorna'))         #added
         except KeyError:
             self.helper.add_input(Submit('submit', 'Crea'))
-
 
         self.helper.layout = Layout(
             Row(Div('citta_destinazione', css_class="col-sm-6"), Div('stato_destinazione', css_class="col-sm-6")),
@@ -324,6 +327,162 @@ class MissioneForm(forms.ModelForm):
             Row(Div(InlineCheckboxes('motivazione_automobile'), css_class="col-12")),
         )
 
+'''
+
+#missione form originale
+'''
+class MissioneForm(forms.ModelForm):
+    mezzi_previsti = forms.MultipleChoiceField(choices=MEZZO_CHOICES, required=False)
+    automobile = forms.ModelChoiceField(queryset=None, empty_label="---", required=False)
+    motivazione_automobile = forms.MultipleChoiceField(choices=MOTIVAZIONE_AUTO_CHOICES, required=False,
+                                                       widget=forms.CheckboxSelectMultiple)
+
+    # automobile_altrui = forms.CharField(label='Proprietario auto', required=False)
+
+    class Meta:
+        model = Missione
+        fields = '__all__'
+        exclude = ('user', 'scontrino', 'pernottamento', 'pernottamenti', 'altrespese', 'altre_spese', 'convegni' )
+
+        widgets = {
+            'inizio': forms.DateInput(attrs={'type': 'date'}),
+            'fine': forms.DateInput(attrs={'type': 'date'}),
+            'inizio_ora': forms.TimeInput(attrs={'type': 'time'}, format='%H:%M'),
+            'fine_ora': forms.TimeInput(attrs={'type': 'time'}, format='%H:%M'),
+        }
+
+        labels = {
+            'stato_destinazione': 'Stato di destinazione',
+            'citta_destinazione': 'Città di destinazione',
+            'mezzi_previsti': 'Mezzi',
+            'automobile_altrui': 'Proprietario auto',
+            'tipo': 'Tipologia di missione <a tabindex="0" class="popover-dismiss" role="button" data-toggle="popover" \
+               data-trigger="focus" title="Tipologia di missione" \
+               data-content="La tipologia missione serve per distinguere missioni di pura ricerca da missioni di \
+               progetto, ovvero missioni correlate ad un progetto di ricerca. Il campo è obbligatorio!"> \
+               <i class="fa fa-info-circle fa-1x" aria-hidden="true"></i></a>',
+        }
+
+    def clean(self):
+        cleaned_data = super(MissioneForm, self).clean()
+        inizio = cleaned_data.get("inizio")
+        fine = cleaned_data.get("fine")
+        inizio_ora = cleaned_data.get("inizio_ora")
+        fine_ora = cleaned_data.get("fine_ora")
+
+        if fine < inizio:
+            raise forms.ValidationError("La data di inizio deve essere antecedente a quella di fine.")
+        if inizio == fine and fine_ora < inizio_ora:
+            raise forms.ValidationError("L'ora di inizio deve essere antecedente a quella di fine.")
+        return cleaned_data
+
+    def __init__(self, user=None, *args, **kwargs):
+        super(MissioneForm, self).__init__(*args, **kwargs)
+        if user:
+            self.fields['automobile'].queryset = Automobile.objects.filter(user=user)
+
+        self.helper = FormHelper()
+        self.helper.form_method = 'post'
+        # self.helper.form_class = 'form-horizontal'
+        # self.helper.form_action = 'missione'
+        try:
+            _ = kwargs['instance']
+           # self.helper.add_input(Submit('submit', 'Aggiorna'))
+            if 2>1:                                                                 # orribile, aggiunto per evitare la visualizzazione del pulsante              #added
+                self.helper.add_input(Submit('submit', 'Aggiorna'))         #added
+        except KeyError:
+            self.helper.add_input(Submit('submit', 'Crea'))
+
+        self.helper.layout = Layout(
+            Row(Div('citta_destinazione', css_class="col-sm-6"), Div('stato_destinazione', css_class="col-sm-6")),
+            Row(Div('inizio', css_class="col-lg-3 col-sm-6"), Div('inizio_ora', css_class="col-lg-3 col-sm-6"),
+                Div('fine', css_class="col-lg-3 col-sm-6"), Div('fine_ora', css_class="col-lg-3 col-sm-6")),
+            Row(Div('fondo', css_class="col-lg-3 col-sm-6"), Div('struttura_fondi', css_class="col-lg-3 col-sm-6"),
+                Div('tipo', css_class="col-lg-3 col-sm-6"), Div('anticipo', css_class="col-lg-3 col-sm-6")),
+            Row(Div('motivazione', css_class="col-12")),
+            Row(Div(InlineCheckboxes('mezzi_previsti'), css_class="col-12 m-2 p-2"),
+                Div('automobile', css_class="col-sm-12 col-md-6"),
+                Div('automobile_altrui', css_class="col-12")),
+            Row(Div(InlineCheckboxes('motivazione_automobile'), css_class="col-12")),
+        )'''
+
+
+class MissioneForm(forms.ModelForm):
+    mezzi_previsti = forms.MultipleChoiceField(choices=MEZZO_CHOICES, required=False)
+    automobile = forms.ModelChoiceField(queryset=None, empty_label="---", required=False)
+    motivazione_automobile = forms.MultipleChoiceField(choices=MOTIVAZIONE_AUTO_CHOICES, required=False,
+                                                       widget=forms.CheckboxSelectMultiple)
+
+    # automobile_altrui = forms.CharField(label='Proprietario auto', required=False)
+
+    class Meta:
+        model = Missione
+        fields = '__all__'
+        exclude = ('user', 'scontrino', 'pernottamento', 'pernottamenti', 'altrespese', 'altre_spese', 'convegni' )
+
+        widgets = {
+            'inizio': forms.DateInput(attrs={'type': 'date'}),
+            'fine': forms.DateInput(attrs={'type': 'date'}),
+            'inizio_ora': forms.TimeInput(attrs={'type': 'time'}, format='%H:%M'),
+            'fine_ora': forms.TimeInput(attrs={'type': 'time'}, format='%H:%M'),
+        }
+
+        labels = {
+            'stato_destinazione': 'Stato di destinazione',
+            'citta_destinazione': 'Città di destinazione',
+            'mezzi_previsti': 'Mezzi',
+            'automobile_altrui': 'Proprietario auto',
+            'tipo': 'Tipologia di missione <a tabindex="0" class="popover-dismiss" role="button" data-toggle="popover" \
+               data-trigger="focus" title="Tipologia di missione" \
+               data-content="La tipologia missione serve per distinguere missioni di pura ricerca da missioni di \
+               progetto, ovvero missioni correlate ad un progetto di ricerca. Il campo è obbligatorio!"> \
+               <i class="fa fa-info-circle fa-1x" aria-hidden="true"></i></a>',
+        }
+
+    '''def clean(self):
+        cleaned_data = super(MissioneForm, self).clean()
+        inizio = cleaned_data.get("inizio")
+        fine = cleaned_data.get("fine")
+        inizio_ora = cleaned_data.get("inizio_ora")
+        fine_ora = cleaned_data.get("fine_ora")
+
+        if fine < inizio:
+            raise forms.ValidationError("La data di inizio deve essere antecedente a quella di fine.")
+        if inizio == fine and fine_ora < inizio_ora:
+            raise forms.ValidationError("L'ora di inizio deve essere antecedente a quella di fine.")
+        return cleaned_data'''
+
+
+    def __init__(self, user=None, *args, **kwargs):
+        super(MissioneForm, self).__init__(*args, **kwargs)
+        if user:
+            self.fields['automobile'].queryset = Automobile.objects.filter(user=user)
+
+        self.helper = FormHelper()
+        self.helper.form_method = 'post'
+        self.helper.form_id = 'missione-form'  # ID aggiunto
+        # self.helper.form_class = 'form-horizontal'
+        # self.helper.form_action = 'missione'
+        try:
+            _ = kwargs['instance']
+           # self.helper.add_input(Submit('submit', 'Aggiorna'))
+            if 2>1:                                                                 # orribile, aggiunto per evitare la visualizzazione del pulsante              #added
+                self.helper.add_input(Submit('submit', 'Aggiorna'))         #added
+        except KeyError:
+            self.helper.add_input(Submit('submit', 'Crea'))
+
+        self.helper.layout = Layout(
+            Row(Div('citta_destinazione', css_class="col-sm-6"), Div('stato_destinazione', css_class="col-sm-6")),
+            Row(Div('inizio', css_class="col-lg-3 col-sm-6"), Div('inizio_ora', css_class="col-lg-3 col-sm-6"),
+                Div('fine', css_class="col-lg-3 col-sm-6"), Div('fine_ora', css_class="col-lg-3 col-sm-6")),
+            Row(Div('fondo', css_class="col-lg-3 col-sm-6"), Div('struttura_fondi', css_class="col-lg-3 col-sm-6"),
+                Div('tipo', css_class="col-lg-3 col-sm-6"), Div('anticipo', css_class="col-lg-3 col-sm-6")),
+            Row(Div('motivazione', css_class="col-12")),
+            Row(Div(InlineCheckboxes('mezzi_previsti'), css_class="col-12 m-2 p-2"),
+                Div('automobile', css_class="col-sm-12 col-md-6"),
+                Div('automobile_altrui', css_class="col-12")),
+            Row(Div(InlineCheckboxes('motivazione_automobile'), css_class="col-12")),
+        )
 
 ###########################
 # BEGIN: Old Version
