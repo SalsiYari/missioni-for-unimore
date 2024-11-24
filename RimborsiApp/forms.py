@@ -868,13 +868,15 @@ firma_recived_formset = modelformset_factory(
     min_num=0
 )
 
-class Firme_Shared_Visualization_Form(forms.ModelForm):
+class Firme_Shared_Visualization_Form(forms.ModelForm):                 #form per la visualizzazione delle firme condivise da me
     class Meta:
         model = Firme_Shared
         fields = ['firma', 'user_guest']
         widgets = {
-            'firma': forms.Select(attrs={'class': 'form-control form-control-sm'}),
-            'user_guest': forms.Select(attrs={'class': 'form-control form-control-sm'}),
+            #'firma': forms.Select(attrs={'class': 'form-control form-control-sm'}),
+            #'user_guest': forms.Select(attrs={'class': 'form-control form-control-sm'}),
+            'firma': forms.TextInput(attrs={'class': 'form-control-plaintext', 'readonly': 'readonly'}),
+            'user_guest': forms.TextInput(attrs={'class': 'form-control-plaintext', 'readonly': 'readonly'}),
         }
         labels = {
             'firma': 'Firma condivisa',

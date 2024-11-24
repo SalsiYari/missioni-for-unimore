@@ -1069,7 +1069,7 @@ def salva_trasporti(request, id):
                             })
                             return JsonResponse(
                                 {"message": "Dati eliminati correttamente", "deleted_rows": deleted_rows}, status=200)
-                        
+
                         except Trasporto.DoesNotExist:
                             return HttpResponseBadRequest(f"Errore: trasporto con id {trasporto_id} non trovato.")
                         continue  # Passa al record successivo senza ulteriori operazioni
@@ -1547,12 +1547,31 @@ def firma_recived_visualization(request):
         return redirect('RimborsiApp:profile')
 
     elif request.method == 'POST':
-        firme_recived_formset = firma_recived_visualization_formset(request.POST)
+        if request.content_type == "application/json" or request.content_type.startswith("application/json"):
+            #datas = json.loads(request.body).get('data', [])
+            data= json.loads(request.body)
+            form_id = data.get('formId')
 
-        if firme_recived_formset.is_valid():
-            firme_recived_formset.save()
+            if not form_id:
+                return HttpResponseBadRequest("ID della firma condivisa non fornito.")
+            try:
+                firme_condivise = Firme_Shared.objects.get(id=form_id)
+                firme_condivise.delete()
 
-        return redirect('RimborsiApp:profile')
+                return JsonResponse({"message": "Dati eliminati correttamente", "deleted_rows": '1'},status=200)
+
+
+            except Exception as e:
+                return HttpResponseBadRequest(f"Errore nel salvataggio della spesa: {str(e)}")
+
+
+        else :
+            firme_recived_formset = firma_recived_visualization_formset(request.POST)
+
+            if firme_recived_formset.is_valid():
+                firme_recived_formset.save()
+
+            return redirect('RimborsiApp:profile')
 
     return HttpResponseBadRequest()
 
