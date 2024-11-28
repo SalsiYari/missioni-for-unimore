@@ -880,7 +880,7 @@ class Firme_Shared_Visualization_Form(forms.ModelForm):                 #form pe
         }
         labels = {
             'firma': 'Firma condivisa',
-            'user_guest': 'Utente a cui è stata condivisa la firma',
+            'user_guest': 'condivisa ad ',
         }
 
     def __init__(self, *args, **kwargs):

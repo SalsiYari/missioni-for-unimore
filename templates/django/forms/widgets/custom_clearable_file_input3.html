@@ -6,36 +6,22 @@
 
 <div class="custom-file-input-container">
     <input type="file" class="fileInput" name="{{ widget.name }}" id ="{{ widget.attrs.id }}"    style="display: none; " data-file-input>   <!-- data-file-input is a custom attribute collega lo script javascript associato a questo campo --> <!-- id="{ widget.attrs.id }}" -->
-    <label class="file-label" for="{{ widget.attrs.id }}">                      <!-- for="{ widget.attrs.id }}" --> 
+    {% comment %}<label class="file-label" >                      <!-- for="{ widget.attrs.id }}" --> {% endcomment %}
+    <label class="file-label" for="{{ widget.attrs.id }}">                      <!-- for="{ widget.attrs.id }}" -->
        <i class="fa fa-upload"></i>                                                  <!-- Font Awesome icon -->
     </label>
 
     <span class="firme-file-name" data-file-name>No selected Img</span>                              <!-- data-file-name is a custom attribute -->
     {% if widget.is_initial %}                                                                         <!-- se è già stato caricato un file per questo campo -->
         {% if widget.value %}                                                                        <!-- se il campo è già stato valorizzato,viene geenrato un link che punta all'anteprima dell'immagine -->
-            {% comment %}{% endcomment %}
             <a href="{% url 'RimborsiApp:firma_image_preview' id=widget.value.instance.id img_field_name=widget.name %}" target="_blank" class="centered-icon">
                 <i class="fa fa-picture-o" style="font-size:28px;"></i>                             <!-- Font Awesome icon, link che punta ad una view che permette di visualizzare l'immagine caricata in un altra scheda, fa fa-picture-o rappresenta un'anteprima dell'immagine -->
             </a>
-           
-            
-            {% comment %}
-            <a href="{% url 'RimborsiApp:firma_image_preview' id=widget.value.instance.id img_field_name=widget.name %}" class="centered-icon firma-preview-link" data-url="{% url 'RimborsiApp:firma_image_preview' id=widget.value.instance.id img_field_name=widget.name %}">
-                <i class="fa fa-picture-o" style="font-size:28px;"></i>
-            </a>
-            {% endcomment %}
-            
         {% endif %}
         <button type="submit" name="{{ widget.checkbox_name }}" value="on" class="delete-button">     <!-- bottone per eliminare l'immagine caricata,che attiva il submit del form con il valore on (per l'eliminazione).-->
            <i class="fa fa-trash"></i>
         </button>
     {% endif %}
-    
-    <!-- Aggiunto temporaneamente per debug -->
-    <div style="display:none">
-        ID campo: {{ form.img_firma.auto_id }}<br>
-        Nome campo: {{ form.img_firma.html_name }}
-    </div>
 
 </div>
 
@@ -139,10 +125,13 @@
         const fileNameDisplay = label.nextElementSibling;
 
         //label.setAttribute('for', `fileInput${index}`);
-        //input.id = `fileInput${index}`;
-        if (input.id) {
+         // Usa direttamente l'id già presente, senza sovrascriverlo.
         label.setAttribute('for', input.id);
-        }
+
+        input.id = `fileInput${index}`;
+        //if (input.id) {
+        //label.setAttribute('for', input.id);
+        //}
         //----
 
         fileNameDisplay.title = 'No Selected Img';
@@ -152,7 +141,6 @@
             fileNameDisplay.textContent = fileName;
             fileNameDisplay.title = fileName;
         });
-
     });
 </script>
 

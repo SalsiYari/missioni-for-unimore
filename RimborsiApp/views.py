@@ -300,7 +300,7 @@ def general_profile(request, profile_form, page, is_straniero):
         automobili = Automobile.objects.filter(user=request.user)
         afs = automobile_formset(instance=request.user, queryset=automobili)
 
-        firme_formset= firma_formset(instance=request.user, queryset=Firme.objects.filter(user_owner=request.user))
+        firme_formset= firma_formset(instance=request.user, queryset=Firme.objects.filter(user_owner=request.user), prefix='firme_prefix')
         firme_shared = Firme_Shared_Form(user=request.user)
 
         firme_recived_formset = firma_recived_formset(queryset=Firme_Shared.objects.filter(user_guest=request.user))
@@ -400,6 +400,8 @@ def profile(request):
 @login_required
 def automobili(request):
     if request.method == 'POST':
+        print(request.POST)  # Aggiungi questa linea nella view per vedere il contenuto completo del POST
+
         automobili = Automobile.objects.filter(user=request.user)
         afs = automobile_formset(request.POST, instance=request.user, queryset=automobili)
         if afs.is_valid():
@@ -1489,14 +1491,13 @@ def statistiche(request):
 @login_required
 def firma(request):
     if request.method == 'GET':
-        firme_formset = firma_formset(
-            instance=request.user,
-            queryset=Firme.objects.filter(user_owner=request.user)
-        )
+
         return redirect('RimborsiApp:profile')
 
     elif request.method == 'POST':
-        firme_formset = firma_formset(request.POST,request.FILES,instance=request.user)
+        firme_formset = firma_formset(request.POST,request.FILES,instance=request.user,prefix='firme_prefix')
+
+        print(request.POST)
 
         if firme_formset.is_valid():
             instances = firme_formset.save(commit=False)
@@ -1514,9 +1515,10 @@ def firma(request):
             print("Errori nel formset:", firme_formset.errors)
             print("Errori non legati ai form:", firme_formset.non_form_errors())
 
-            return render(request, 'Rimborsi/firma', {
+            '''return render(request, 'Rimborsi/firma', {
                 'firme_formset': firme_formset
-            })
+            })'''
+            return redirect('RimborsiApp:firma')
 
     return HttpResponseBadRequest()
 
