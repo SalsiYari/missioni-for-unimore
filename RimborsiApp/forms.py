@@ -806,8 +806,8 @@ class Firme_Shared_Form(forms.ModelForm):   #form per la condivisione di firme
         }
         labels = {
 
-            'user_guest': 'ad utente:',
-            'firma':'condividi:',
+            'user_guest': 'Con l\' Utente:',
+            'firma':'Condividi La Firma:',
         }
 
     def __init__(self, *args ,user=None, **kwargs):
