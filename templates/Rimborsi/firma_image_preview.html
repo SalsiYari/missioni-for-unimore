@@ -6,9 +6,8 @@
 {% block content %}
     {% spaceless %}
         
-       
-        
-           <div class="container d-flex justify-content-center align-items-center" style="min-height: 90vh;">
+
+        <div class="container d-flex justify-content-center align-items-center" style="min-height: 90vh;">
             <div style="max-width: 800px; text-align: center;">
                 <h1>Preview Image</h1>
                 <img id="firma-image" src="{{ img_url }}" alt="Firma Image" style="width: 500px; height: auto;">
@@ -20,7 +19,7 @@
             </div>
         </div>
 
-        
+   
     <script>
         // Ruotare l'immagine (non salva nel DB)
         $('#rotate-button').on('click', function () {
@@ -29,7 +28,7 @@
                 type: "POST",
                 data: {
                     csrfmiddlewaretoken: '{{ csrf_token }}',
-                    rotate: true  // Indica che stiamo ruotando l'immagine
+                    rotate: true  
                 },
                 success: function (response) {
                     if (response.status === 'success') {
@@ -45,11 +44,11 @@
         // Salvare l'immagine ruotata nel DB
         $('#save-button').on('click', function () {
             $.ajax({
-                url: "",  // Usa l'URL corrente
+                url: "",  
                 type: "POST",
                 data: {
                     csrfmiddlewaretoken: '{{ csrf_token }}',
-                    save: true  // Indica che vogliamo salvare l'immagine
+                    save: true  
                 },
                 success: function (response) {
                     // Dopo il salvataggio, fai il redirect alla pagina profilo
@@ -58,7 +57,7 @@
             });
         });
     </script>
-
+   
 
 
     {% endspaceless %}

@@ -11,12 +11,6 @@
 {% block content %}
     {#    {% spaceless %}#}
     {% if user.is_authenticated %}
-        {% comment %}
-        <form id="missione-form">
-            {% csrf_token %}
-        </form>
-        {% endcomment %}
-        
         {% crispy missione_form %}
 
         <script>
@@ -40,9 +34,7 @@
                 return true;
             }
             
-                    
-                    
-                        // Funzione per inviare dati AJAX specifici per il form missione
+            // Funzione per inviare dati AJAX specifici per il form missione
             function sendMissionDataToServer(formData) {
                 const url = "{% url 'RimborsiApp:missione' id=missione.id %}";
             
@@ -58,7 +50,6 @@
                     .then(response => response.json())
                     .then(data => {
                         console.log('Dati missione salvati:', data);
-                        // Puoi aggiungere logica per aggiornare dinamicamente l'interfaccia
                     })
                     .catch(error => console.error('Errore durante il salvataggio della missione:', error));
             }

@@ -704,9 +704,9 @@ def inserisci_firme(request, document, profile, idR, idT):
     if idT:             # Recupera la firma del titolare
         try:
             firma_titolare = get_object_or_404(Firme_Shared, pk=idT)
-            firma_titolare_img_path = firma_titolare.firma.img_firma.path                                                   # Firma_Shared non ha img-firma !
+            firma_titolare_img_path = firma_titolare.firma.img_firma.path                                             # Firma_Shared non ha img-firma !
             inserisci_firma( firma_titolare_img_path, document, "Firma del titolare dei fondi/progetto" )         # Inserisce la firma del titolare nel documento
-            if os.path.exists(firma_titolare_img_path):                                                                  # Verifica se il file esiste
+            if os.path.exists(firma_titolare_img_path):                                                               # Verifica se il file esiste
                 inserisci_firma(firma_titolare_img_path, document, "Firma del titolare dei fondi/progetto")
             else:
                 print(f"Firma del titolare non trovata nel percorso: {firma_titolare_img_path}")

@@ -317,7 +317,6 @@ def general_profile(request, profile_form, page, is_straniero):
 
 
     elif request.method == 'POST':
-        #profile_form = ProfileForm(request.POST, instance=profile)
 
         if profile_form.is_valid():
             profile = profile_form.save(commit=False)
@@ -653,7 +652,6 @@ def missione(request, id):
     elif request.method == 'POST':
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             # Gestione della richiesta AJAX
-            #dovrei fare una funzioe nel form che non sia clean() che richiamo io quando voglio validare i campi affinchè si vedano nel template
             try:
                 data = json.loads(request.body)  # I dati inviati dal client
                 updated_data = {}  # Per salvare i dati convertiti
@@ -741,7 +739,7 @@ def missione(request, id):
 
 
         else:
-            # Gestione della richiesta non AJAX
+            # Gestione della richiesta non AJAX, coincide con la #precedente versione
             missione_form = MissioneForm(request.user, request.POST, instance=missione)
             if missione_form.is_valid():
                 missione_form.save()
@@ -751,15 +749,6 @@ def missione(request, id):
                 response['missione_form'] = missione_form
                 return render(request, 'Rimborsi/missione.html', response)
 
-        #precedente versione
-        '''missione_form = MissioneForm(request.user, request.POST, instance=missione)
-        if missione_form.is_valid():
-            missione_form.save()
-            return redirect('RimborsiApp:missione', id)
-        else:
-            response = missione_response(missione)
-            response['missione_form'] = missione_form
-            return render(request, 'Rimborsi/missione.html', response)'''
     else:
         raise Http404
 
@@ -965,9 +954,7 @@ def salva_pasti(request, id):
                             file = request.FILES[full_field_name]
                             setattr(pasto, field_name, file)
                             print(f"Aggiornato {field_name} con {file.name}")
-                    ''' aggiorno solo le immagini specificate nella richiesta, senza tenere conto delle altre già esistenti. 
-                    altrimenti il codice setattr(pasto, field_name, file) lo sovrascrive comunque e l'immagine precedente sarà persa.
-                    '''
+
                 if pasto:
                     pasto.save()
                     updated_rows.append({'formset_prefix': formset_prefix, 'pasto_id': pasto.id})
@@ -982,53 +969,7 @@ def salva_pasti(request, id):
 
     return HttpResponseBadRequest()
 
-#sala_trasporti old version
-'''
-@login_required
-def salva_trasporti(request,id):
-    missione = Missione.objects.get(id=id)
-    if request.method == 'POST':
-        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-           #richiesta ajax
-            try:
-                datas = json.loads(request.body).get('data', [])
 
-                for form_data in datas:
-                    valori = {}
-                    trasporto_id=None
-                    for key, value in form_data.items():
-                        new_key = key.split('-')[-1]
-                        if new_key == 'id':
-                            if value != '':
-                                trasporto_id = value
-                        else:
-                            valori[new_key] = value
-                    if trasporto_id:
-                        trasporto = Trasporto.objects.get(id=trasporto_id)
-                        for field, value in valori.items():
-                            setattr(trasporto, field, value)
-                        trasporto.save()
-                    else:
-                        valori['missione'] = missione
-
-                        # check che tutti i campi necessari siano presenti in `valori` e non siano vuoti (campi non null in Models)
-                        if all(valori.get(field) for field in ['data', 'missione','mezzo', 'costo', 'valuta']):
-                            trasporto = Trasporto(**valori)
-                            trasporto.save()
-                        else:
-                            return JsonResponse({"message": "Errore nei dati inseriti. Form non completo; campi obbligatori mancanti."},status=400)
-
-                return JsonResponse({"message": "Dati salvati correttamente"}, status=200)
-            except (json.JSONDecodeError, KeyError, ValueError) as e:
-                return HttpResponseBadRequest(f"Errore nel parsing dei dati: {e}")
-        else:
-           #normal POST method
-            trasporti_formset = trasporto_formset(request.POST, request.FILES, instance=missione)
-            if trasporti_formset.is_valid():
-                trasporti_formset.save()
-                return redirect('RimborsiApp:missione', id)
-            else:
-                return HttpResponseServerError('Form non valido')'''
 @require_POST
 def salva_trasporti(request, id):
     missione = get_object_or_404(Missione, id=id)
@@ -1170,7 +1111,7 @@ def salva_spese(request, id, tipo_spesa, prefix):
     else:
         return HttpResponseBadRequest("Metodo non consentito")
 
-#funzione dispessa che gestisce sia il salvataggio che la cancellazione di una spesa tramite gestione standard dei form
+#funzione dismessa,  gestisce sia il salvataggio che la cancellazione di una spesa tramite gestione standard dei form (ora non più preste)
 def handle_full_formset(request, missione, tipo_spesa, prefix):
     spese_formset = spesa_formset(request.POST, request.FILES, prefix=prefix)
 
@@ -1197,35 +1138,6 @@ def handle_full_formset(request, missione, tipo_spesa, prefix):
         errors = spese_formset.errors
         return HttpResponseServerError(f"Form non valido. Errori: {errors}")
 
-'''
-def handle_ajax_request(request, missione, tipo_spesa):
-    try:
-        datas = json.loads(request.body).get('data', [])
-        for form_data in datas:
-            valori = {}
-            spesa_id = None
-            for key, value in form_data.items():
-                new_key = key.split('-')[-1]
-                if new_key == 'id':
-                    spesa_id = value if value else None
-                else:
-                    valori[new_key] = value
-
-            if spesa_id:
-                spesa = Spesa.objects.get(id=spesa_id)
-                for field, value in valori.items():
-                    setattr(spesa, field, value)
-                spesa.save()
-            else:
-                spesa = Spesa(**valori)
-                if spesa.data:
-                    spesa.save()
-                    SpesaMissione.objects.update_or_create(missione=missione, spesa=spesa, tipo=tipo_spesa)
-
-        return JsonResponse({"message": "Dati salvati correttamente"}, status=200)
-    except (json.JSONDecodeError, KeyError, ValueError) as e:
-        return HttpResponseBadRequest(f"Errore nel parsing dei dati: {e}")
-'''
 
 #funzione per eliminare dalla risposta JSON il form spesa eliminato
 def prepare_formset_response(data_list, deleted_id=None):
@@ -1285,9 +1197,7 @@ def handle_ajax_request(request, missione, tipo_spesa):
                             "formset_prefix": formset_prefix
                         })
                         return JsonResponse({"message": "Dati eliminati correttamente", "deleted_rows": deleted_rows}, status=200)
-                        #return redirect('RimborsiApp:missioneUpdatePageAfterDelete', id=missione.id ,altrespese_formset_deleted = True)
-                        #return  missioneUpdatePageAfterDelete(request, missione.id, tipo_spesa)
-                        #return redirect('RimborsiApp:missione', id=missione.id)
+
 
                     except Exception as e:
                         return HttpResponseBadRequest(f"Errore nel salvataggio della spesa: {str(e)}")
@@ -1296,7 +1206,7 @@ def handle_ajax_request(request, missione, tipo_spesa):
                         return HttpResponseBadRequest(f"Errore: Spesa con id {spesa_id} non trovato.")
 
 
-                # Gestisci delete se presente altrimenti la rimuovi
+                #  se presente altrimenti la rimuovi
                 valori.pop('DELETE', None)
                 #creazione o aggiornamento Spesa
                 if spesa_id:
@@ -1348,7 +1258,7 @@ def handle_ajax_request(request, missione, tipo_spesa):
             return HttpResponseBadRequest(f"Errore nel parsing dei dati: {e}")
         except Exception as e:
             return HttpResponseBadRequest(f"Errore sconosciuto: {e}")
-   #image section   .-  .-  .-  .-  .-  .   .-. -
+   #image section  --> le immagini sono gestite separatamente rispetto la logica di salvataggio appena sopra
     elif request.content_type.startswith("multipart/form-data"):
         try:
             spesa_id = None
@@ -1412,7 +1322,6 @@ def salva_pernottamenti(request, id):
 
 
 
-############ fine sezione di  modifica misisone e aggiunta relative spese
 @login_required
 def cancella_missione(request, id):
     try:

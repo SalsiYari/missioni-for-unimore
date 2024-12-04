@@ -212,32 +212,6 @@ def pasto_image_preview(request, id, img_field_name):
     # Costruire il percorso per secure_media e richiamare la funzione
     return secure_media(request, pasto.missione.user.id, pasto.missione.id, 'PASTO', img_name)
 
-#------------------------------------------------------------image preview1
-'''
-@login_required
-def firma_image_preview(request, id ,img_field_name):       #id è l'id della firma, img_field_name è il nome del campo dell'immagine
-    firma = get_object_or_404(Firme, id=id)
-    img_field_short_name = img_field_name.split('-')[-1]
-
-    img_url = None
-    if hasattr(firma, img_field_short_name):
-        img_field = getattr(firma, img_field_short_name)
-        if img_field and img_field.url:
-            img_url = img_field.url
-
-    if not img_url:
-        return HttpResponseForbidden('Image not found or not available.')
-
-    img_name = img_url.split('/')[-1]
-    image_path = os.path.join(settings.MEDIA_ROOT, 'users', str(firma.user_owner.id) , img_name)   # Costruire il percorso per secure_media
-
-    if not os.path.exists(image_path):
-        raise Http404('Image not found')
-    return FileResponse(open(image_path, 'rb'))
-'''
-
-#------------------------------------------------------------image preview2
-
 def firma_image_preview(request, id, img_field_name):
     firma = get_object_or_404(Firme, id=id)
     img_field_short_name = img_field_name.split('-')[-1]
@@ -278,46 +252,8 @@ def firma_image_preview(request, id, img_field_name):
             return JsonResponse({'status': 'error', 'message': str(e)})
 
     return render(request, 'Rimborsi/firma_image_preview.html', {'img_url': img_url})
-#------------------------------------------------------------image preview3 per PopUp non funzionante
-'''
-def firma_image_preview(request, id, img_field_name):
-    firma = get_object_or_404(Firme, id=id)
-    img_field_short_name = img_field_name.split('-')[-1]
 
-    img_url = None
-    if hasattr(firma, img_field_short_name):
-        img_field = getattr(firma, img_field_short_name)
-        if img_field and img_field.url:
-            img_url = img_field.url
-
-    if not img_url:
-        return HttpResponseForbidden('Image not found or not available.')
-
-    img_name = img_url.split('/')[-1]
-    image_path = os.path.join(settings.MEDIA_ROOT, 'users', str(firma.user_owner.id), img_name)
-
-    if not os.path.exists(image_path):
-        raise Http404('Image not found')
-
-    # Solo se viene fatta una richiesta AJAX con 'rotate' si entra in questo blocco
-    if request.method == 'POST' and request.is_ajax():
-        if 'rotate' in request.POST:
-            try:
-                with Image.open(image_path) as img:
-                    img = img.rotate(90, expand=True)
-                    img.save(image_path)  # Salva solo in locale senza aggiornare il DB
-                return JsonResponse({'status': 'success'})
-            except Exception as e:
-                return JsonResponse({'status': 'error', 'message': str(e)})
-
-        # Se il POST non è per la rotazione, restituisci un errore
-        return JsonResponse({'status': 'error', 'message': 'Invalid request'})
-
-    # Se è una richiesta GET, visualizza il popup normalmente
-    return render(request, 'Rimborsi/firma_image_preview.html', {'img_url': img_url})
-'''
-
-#------------------------------------------------------------fine blocco delle firme
+#FINE blocco delle firme
 
 @login_required
 def spesa_image_preview(request, id):

@@ -777,7 +777,6 @@ class FirmaForm(forms.ModelForm):
         fields = ['descrizione', 'img_firma']
         widgets = {
             'descrizione': forms.TextInput(attrs={'class': 'form-control form-control-sm'}),
-            #'img_firma': forms.ClearableFileInput(attrs={'class': 'form-control form-control-sm'}),
             'img_firma': FirmeCustomClearableFileInput(attrs={'class': 'form-control form-control-sm'}),
         }
         labels = {
@@ -792,7 +791,7 @@ firma_formset = inlineformset_factory(
     extra=0,
     can_delete=True,
     min_num=1,
-    fields=['descrizione', 'img_firma']  # Specifica esplicitamente i campi
+    fields=['descrizione', 'img_firma']
 )
 
 
@@ -873,8 +872,6 @@ class Firme_Shared_Visualization_Form(forms.ModelForm):                 #form pe
         model = Firme_Shared
         fields = ['firma', 'user_guest']
         widgets = {
-            #'firma': forms.Select(attrs={'class': 'form-control form-control-sm'}),
-            #'user_guest': forms.Select(attrs={'class': 'form-control form-control-sm'}),
             'firma': forms.TextInput(attrs={'class': 'form-control-plaintext', 'readonly': 'readonly'}),
             'user_guest': forms.TextInput(attrs={'class': 'form-control-plaintext', 'readonly': 'readonly'}),
         }
@@ -885,7 +882,6 @@ class Firme_Shared_Visualization_Form(forms.ModelForm):                 #form pe
 
     def __init__(self, *args, **kwargs):
         super(Firme_Shared_Visualization_Form, self).__init__(*args, **kwargs)
-        # Imposta i campi come non modificabili
         self.fields['firma'].widget.attrs['readonly'] = True
         self.fields['user_guest'].widget.attrs['readonly'] = True
 
@@ -908,7 +904,7 @@ class Firme_ChooseForm(forms.ModelForm):
 
     class Meta:
         model = Firme
-        fields = ['firma_richiedente']  # Usa il campo 'firma' per il ModelChoiceField
+        fields = ['firma_richiedente']
 
     def __init__(self, *args, **kwargs):
         user_owner = kwargs.pop('user_owner', None)

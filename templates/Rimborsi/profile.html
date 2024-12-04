@@ -30,7 +30,7 @@
             {% crispy profile_form %}
         </div>
         <hr>
-
+        <br>
         <h2>Automobili:</h2>
         <form action="{% url 'RimborsiApp:automobili' %}" method="post">{% csrf_token %}
             <table class="table table-striped table-md">
@@ -64,13 +64,13 @@
             <input class="btn btn-primary" style="margin-bottom: 50px" type="submit" value="Aggiorna">
 
         </form>
-        
+        <br>
         
         <h2 style="display: flex; align-items: center;">
             Gestione Firme:
             <a tabindex="0" class="popover-dismiss" role="button" data-toggle="popover"
                data-trigger="focus" title="Carica Firma"
-               data-content="è possibile caricare l'immagine della propria firma compilando il seguente form.">
+               data-content="è possibile caricare l'immagine della propria firma compilando il seguente form e modificare L'orientamento della stessa, attraverso il pulsante dedicato alla visualizzazione.">
                <i class="fa fa-info-circle fa-1x" aria-hidden="true" style="margin-left: 10px; "></i>
             </a>
         </h2>
@@ -109,30 +109,6 @@
 
         </form>
         
-        {% comment %}
-        #TODO tentativo di modificare la struttura tabellare in struttura <div> ma non risolve il conflitto con il formset Automobili
-        
-        <form action="{% url 'RimborsiApp:firma' %}" method="post" enctype="multipart/form-data">
-            {% csrf_token %}
-            {{ firme_formset.management_form }}
-            <table class="table">
-                {% for form in firme_formset.forms %}
-                <tr class="formset_row_firma">
-                    {% for hidden in form.hidden_fields %}
-                        {{ hidden }}
-                    {% endfor %}
-                    {% for field in form.visible_fields %}
-                    <td>
-                        {{ field }}
-                    </td>
-                    {% endfor %}
-                </tr>
-                {% endfor %}
-            </table>
-            <input type="submit" value="Aggiorna" class="btn btn-primary">
-        </form>
-        {% endcomment %}
-
         
         <!-- firme_recived_formset -->
         <h3 style="display: flex; align-items: center;">
@@ -143,7 +119,7 @@
                <i class="fa fa-info-circle fa-1x" aria-hidden="true" style="margin-left: 10px; "></i>
             </a>
         </h3>
-        <br>
+        <hr>
         <form enctype="multipart/form-data">
             {% csrf_token %}
             {{ firme_recived_formset.management_form }}
@@ -197,7 +173,7 @@
                 {% endfor %}
             </div>
         </form>
-
+        <hr>
 
         
         <!-- qui il codice per condividere la firma con un altro utente -->
@@ -212,76 +188,75 @@
             </a>
         </h3>
         
-        
         <div class="container-fluid my-4">
-    <div class="row justify-content-center">
-        <div class="col-12" style="max-width: 100%;">
-            <form method="POST" enctype="multipart/form-data" action="{% url 'RimborsiApp:firma_shared' %}">
-                <div class="card p-4 mb-4">
-                    {% csrf_token %}
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <label>{{ firme_shared.firma.label|capfirst }}</label>
-                            {{ firme_shared.firma }}
+            <div class="row justify-content-center">
+                <div class="col-12" style="max-width: 100%;">
+                    <form method="POST" enctype="multipart/form-data" action="{% url 'RimborsiApp:firma_shared' %}">
+                        <div class="card p-4 mb-4">
+                            {% csrf_token %}
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <label>{{ firme_shared.firma.label|capfirst }}</label>
+                                    {{ firme_shared.firma }}
+                                </div>
+                                <div>
+                                    <label>{{ firme_shared.user_guest.label|capfirst }}</label>
+                                    {{ firme_shared.user_guest }}
+                                </div>
+                                <button class="btn btn-primary" type="submit">Condividi la Firma</button>
+                            </div>
                         </div>
-                        <div>
-                            <label>{{ firme_shared.user_guest.label|capfirst }}</label>
-                            {{ firme_shared.user_guest }}
-                        </div>
-                        <button class="btn btn-primary" type="submit">Condividi la Firma</button>
-                    </div>
-                </div>
-            </form>
-
-            <form action="{% url 'RimborsiApp:firma_recived_visualization' %}" method="post" enctype="multipart/form-data">
-                {% csrf_token %}
-                <div class="table-responsive">
-                    <table class="table table-striped table-bordered">
-                        {{ firme_recived_visual.management_form }}
-                        {% for form in firme_recived_visual.forms %}
-                            {% if forloop.first %}
-                                <thead class="custom-header">
-                                <tr>
-                                    {% for field in form.visible_fields %}
-                                        <th>{{ field.label|capfirst }}</th>
-                                    {% endfor %}
-                                </tr>
-                                </thead>
-                            {% endif %}
-                            <tr class="{% cycle 'row1' 'row2' %} formset_row_visual">
-                                {% for field in form.visible_fields %}
-                                    <td>
-                                        {% if forloop.first %}
-                                            {% for hidden in form.hidden_fields %}
-                                                {{ hidden }}
+                    </form>
+        
+                    <form action="{% url 'RimborsiApp:firma_recived_visualization' %}" method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="table-responsive">
+                            <table class="table table-striped table-bordered">
+                                {{ firme_recived_visual.management_form }}
+                                {% for form in firme_recived_visual.forms %}
+                                    {% if forloop.first %}
+                                        <thead class="custom-header">
+                                        <tr>
+                                            {% for field in form.visible_fields %}
+                                                <th>{{ field.label|capfirst }}</th>
                                             {% endfor %}
-                                        {% endif %}
-                                        {% if field.name|slice:"-6:" == 'DELETE' %}
-                                            <button class="btn btn-danger delete-row" 
-                                                    type="button" 
-                                                    data-id="{{ form.instance.id }}">
-                                                Rimuovi la condivisione
-                                            </button>
-                                        {% else %}
-                                            {% if field.name == 'firma' %}
-                                                <span>{{ form.instance.firma.descrizione }}</span>
-                                            {% elif field.name == 'user_guest' %}
-                                                <span>{{ form.instance.user_guest.get_full_name }}</span>
-                                            {% else %}
-                                                <span>{{ field.value }}</span>
-                                            {% endif %}
-                                        {% endif %}
-                                    </td>
+                                        </tr>
+                                        </thead>
+                                    {% endif %}
+                                    <tr class="{% cycle 'row1' 'row2' %} formset_row_visual">
+                                        {% for field in form.visible_fields %}
+                                            <td>
+                                                {% if forloop.first %}
+                                                    {% for hidden in form.hidden_fields %}
+                                                        {{ hidden }}
+                                                    {% endfor %}
+                                                {% endif %}
+                                                {% if field.name|slice:"-6:" == 'DELETE' %}
+                                                    <button class="btn btn-danger delete-row" 
+                                                            type="button" 
+                                                            data-id="{{ form.instance.id }}">
+                                                        Rimuovi la condivisione
+                                                    </button>
+                                                {% else %}
+                                                    {% if field.name == 'firma' %}
+                                                        <span>{{ form.instance.firma.descrizione }}</span>
+                                                    {% elif field.name == 'user_guest' %}
+                                                        <span>{{ form.instance.user_guest.get_full_name }}</span>
+                                                    {% else %}
+                                                        <span>{{ field.value }}</span>
+                                                    {% endif %}
+                                                {% endif %}
+                                            </td>
+                                        {% endfor %}
+                                    </tr>
                                 {% endfor %}
-                            </tr>
-                        {% endfor %}
-                    </table>
+                            </table>
+                        </div>
+                    </form>
                 </div>
-            </form>
+            </div>
         </div>
-    </div>
-</div>
-
+        <hr>
         
         <script>
             document.addEventListener('DOMContentLoaded', function () {
